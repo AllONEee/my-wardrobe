@@ -15,6 +15,9 @@
  *   - 导出模式：把裁剪区域拉伸铺满画布，导出时再按比例还原（这样导出的图没有多余留白）
  * 撤销：ops 栈记录每一次操作（擦除/画笔是路径点，裁剪是矩形，云端抠图是上一张底图），
  *      撤销就是弹出栈顶后整体重绘，逻辑简单且不会累积误差。
+ *
+ * 画布相关的事（取节点、按 dpr 定尺寸、加载图片、导出临时文件、触摸事件转发）都交给
+ * components/image-canvas，这一页只负责「画什么」和手势语义。
  */
 const cutout = require('../../utils/cutout.js');
 
@@ -77,58 +80,45 @@ Page({
   /* ==================== 初始化 ==================== */
 
   initCanvas() {
-    wx.createSelectorQuery()
-      .select('#editor')
-      .fields({ node: true, size: true })
-      .exec((res) => {
-        const info = res && res[0];
-        if (!info || !info.node) {
-          wx.showToast({ title: '画布初始化失败', icon: 'none' });
-          return;
-        }
+    const comp = this.selectComponent('#editor');
+    if (!comp) {
+      wx.showToast({ title: '画布初始化失败', icon: 'none' });
+      return;
+    }
+    this._comp = comp;
 
-        const dpr = (wx.getWindowInfo ? wx.getWindowInfo().pixelRatio : wx.getSystemInfoSync().pixelRatio) || 2;
-        const canvas = info.node;
-        canvas.width = Math.round(info.width * dpr);
-        canvas.height = Math.round(info.height * dpr);
-
-        this._canvas = canvas;
-        this._ctx = canvas.getContext('2d');
-        this._dpr = dpr;
-        this._cw = info.width;
-        this._ch = info.height;
-
-        this.loadBase(this.data.srcPath)
-          .then(() => {
-            this.recalcFit();
-            this._view = { scale: 1, tx: 0, ty: 0 };
-            this.setData({ loading: false });
-            this.renderAll();
-          })
-          .catch((err) => {
-            console.error('[image-editor] 底图加载失败', err);
-            this.setData({ loading: false });
-            wx.showToast({ title: '图片加载失败', icon: 'none' });
-          });
+    comp
+      .whenReady()
+      .then((metrics) => {
+        this._canvas = metrics.canvas;
+        this._ctx = metrics.ctx;
+        this._dpr = metrics.dpr;
+        this._cw = metrics.width;
+        this._ch = metrics.height;
+        return this.loadBase(this.data.srcPath);
+      })
+      .then(() => {
+        this.recalcFit();
+        this._view = { scale: 1, tx: 0, ty: 0 };
+        this.setData({ loading: false });
+        this.renderAll();
+      })
+      .catch((err) => {
+        console.error('[image-editor] 底图加载失败', err);
+        this.setData({ loading: false });
+        wx.showToast({ title: '画布或图片加载失败', icon: 'none' });
       });
   },
 
-  /** 加载底图（canvas.createImage，2D 接口） */
+  /** 加载底图（canvas.createImage，2D 接口，由 image-canvas 组件提供） */
   loadBase(path) {
-    return new Promise((resolve, reject) => {
-      if (!this._canvas || !path) {
-        reject(new Error('缺少图片路径'));
-        return;
-      }
-      const img = this._canvas.createImage();
-      img.onload = () => {
-        this._base = img;
-        this._imgW = img.width;
-        this._imgH = img.height;
-        resolve(img);
-      };
-      img.onerror = () => reject(new Error('图片加载失败'));
-      img.src = path;
+    if (!this._comp || !path) return Promise.reject(new Error('缺少图片路径'));
+    // 拿到的 img 要一直留着（底图与画笔恢复都要用），所以存在页面上而不是组件里
+    return this._comp.createImage(path).then((img) => {
+      this._base = img;
+      this._imgW = img.width;
+      this._imgH = img.height;
+      return img;
     });
   },
 
@@ -300,10 +290,14 @@ Page({
     ctx.stroke();
   },
 
-  /* ==================== 触摸交互 ==================== */
+  /* ==================== 触摸事件（由组件转发，坐标仍是画布坐标系） ==================== */
+
+  touchesOf(e) {
+    return (e && e.detail && e.detail.touches) || [];
+  },
 
   onTouchStart(e) {
-    const touches = e.touches || [];
+    const touches = this.touchesOf(e);
 
     // 双指：缩放/平移（任何模式下都可用）
     if (touches.length >= 2) {
@@ -334,7 +328,7 @@ Page({
   },
 
   onTouchMove(e) {
-    const touches = e.touches || [];
+    const touches = this.touchesOf(e);
 
     if (touches.length >= 2) {
       if (!this._pinch) this.startPinch(touches);
@@ -362,7 +356,7 @@ Page({
   },
 
   onTouchEnd(e) {
-    const touches = (e && e.touches) || [];
+    const touches = this.touchesOf(e);
 
     if (touches.length === 0) {
       this._pinching = false;
@@ -639,30 +633,30 @@ Page({
     ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
     this.paintScene(ctx);
 
-    wx.canvasToTempFilePath({
-      canvas: this._canvas,
-      x: 0,
-      y: 0,
-      width: this._cw,
-      height: this._ch,
-      destWidth,
-      destHeight,
-      fileType: 'png', // 擦掉的地方要保留透明通道，必须用 png
-      success: (res) => {
+    this._comp
+      .exportToTempFile({
+        x: 0,
+        y: 0,
+        width: this._cw,
+        height: this._ch,
+        destWidth,
+        destHeight,
+        fileType: 'png', // 擦掉的地方要保留透明通道，必须用 png
+      })
+      .then((tempFilePath) => {
         this.finishExport();
         this.emitResult('done', {
-          path: res.tempFilePath,
+          path: tempFilePath,
           originalPath: this.data.srcPath,
           crop: rect,
         });
         wx.navigateBack();
-      },
-      fail: (err) => {
+      })
+      .catch((err) => {
         console.error('[image-editor] 导出失败', err);
         this.finishExport();
         wx.showToast({ title: '生成图片失败', icon: 'none' });
-      },
-    });
+      });
   },
 
   finishExport() {

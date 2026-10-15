@@ -1,1 +1,399 @@
-/* pages/fitting/fitting.wxss */
+.fit {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 12rpx 12rpx 160rpx;
+}
+
+/* ==================== 文件夹 tab ==================== */
+
+.tabs {
+  padding: 4rpx 0 16rpx;
+}
+
+.tabs__scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.tabs__scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.tabs__row {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tabs__item {
+  height: 64rpx;
+  margin-right: 12rpx;
+  padding: 0 30rpx;
+  border-radius: 999rpx;
+  background: var(--card);
+  color: var(--text-sub);
+  font-size: 26rpx;
+  line-height: 64rpx;
+}
+
+.tabs__item--on {
+  background: var(--primary);
+  color: #fff;
+}
+
+.tabs__add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--text-sub);
+  font-size: 34rpx;
+  line-height: 1;
+}
+
+/* ==================== 画布区 ==================== */
+
+.stage-wrap {
+  position: relative;
+}
+
+.stage {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+/*
+ * movable-view 必须绝对定位：它的 x/y 是用 transform 实现的，
+ * 不定位的话多个图层会按文档流从上往下排，跟拖拽的位置对不上。
+ */
+.layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.layer__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.layer__img {
+  width: 100%;
+  height: 100%;
+}
+
+.layer__img--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-light);
+  font-size: 22rpx;
+}
+
+.layer__frame {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  box-sizing: border-box;
+  border: 2rpx dashed var(--primary);
+  border-radius: 6rpx;
+}
+
+.layer__del {
+  position: absolute;
+  top: -14rpx;
+  right: -14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 4rpx 12rpx rgba(46, 42, 40, 0.24);
+  color: #fff;
+  font-size: 24rpx;
+  line-height: 1;
+}
+
+.stage__empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 76%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.stage__empty-title {
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+.stage__empty-desc {
+  margin-top: 10rpx;
+  color: var(--text-sub);
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+/* ==================== 选中工具栏 ==================== */
+
+.layerbar {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 8rpx 8rpx;
+}
+
+.layerbar__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 26rpx;
+}
+
+.layerbar__hint {
+  color: var(--text-light);
+  font-size: 24rpx;
+}
+
+.layerbar__btn {
+  margin-left: 12rpx;
+  padding: 0 22rpx;
+  height: 56rpx;
+  border-radius: 999rpx;
+  background: var(--card);
+  color: var(--text-sub);
+  font-size: 24rpx;
+  line-height: 56rpx;
+}
+
+/* ==================== 我的搭配 ==================== */
+
+.saved {
+  margin-top: 8rpx;
+}
+
+.saved__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8rpx;
+}
+
+.saved__title {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.saved__count {
+  color: var(--text-light);
+  font-size: 22rpx;
+}
+
+.saved__scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.saved__scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.saved__row {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8rpx;
+}
+
+.saved__item {
+  box-sizing: border-box;
+  width: 132rpx;
+  height: 156rpx;
+  margin-right: 16rpx;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.saved__item--on {
+  box-shadow: 0 0 0 4rpx var(--primary);
+}
+
+.saved__img {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.saved__img--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-light);
+  font-size: 22rpx;
+}
+
+.saved__empty {
+  padding: 28rpx 8rpx;
+  color: var(--text-light);
+  font-size: 24rpx;
+}
+
+/* ==================== 灵感 ==================== */
+
+.insp {
+  padding-top: 4rpx;
+}
+
+.insp__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8rpx 8rpx 20rpx;
+}
+
+.insp__title {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.insp__grid {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -8rpx;
+}
+
+.insp__cell {
+  box-sizing: border-box;
+  width: 33.3333%;
+  padding: 0 8rpx 20rpx;
+}
+
+.insp__box {
+  position: relative;
+  box-sizing: border-box;
+  padding-bottom: 120%;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.insp__box--on {
+  box-shadow: 0 0 0 4rpx var(--primary);
+}
+
+.insp__img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.insp__img--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-light);
+  font-size: 22rpx;
+}
+
+.insp__badge {
+  position: absolute;
+  right: 8rpx;
+  bottom: 8rpx;
+  min-width: 34rpx;
+  height: 34rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background: rgba(46, 42, 40, 0.55);
+  color: #fff;
+  font-size: 20rpx;
+  line-height: 34rpx;
+  text-align: center;
+}
+
+.insp__check {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  background: rgba(46, 42, 40, 0.3);
+  color: #fff;
+  font-size: 24rpx;
+  line-height: 1;
+}
+
+.insp__box--on .insp__check {
+  background: var(--primary);
+}
+
+.insp__note {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+}
+
+.insp__meta {
+  margin-top: 4rpx;
+  color: var(--text-light);
+  font-size: 20rpx;
+}
+
+/* ==================== 底部操作栏 ==================== */
+
+.toolbar__gap {
+  margin-left: 12rpx;
+}
+
+.selbar__count {
+  margin-right: 12rpx;
+  color: var(--text-sub);
+  font-size: 24rpx;
+}
+
+.selbar__gap {
+  margin-left: 10rpx;
+}
+
+.selbar__cancel {
+  margin-left: 14rpx;
+  color: var(--text-sub);
+  font-size: 26rpx;
+}
+
+/* 灵感多选栏按钮多，字号和留白收一点，窄屏也放得下 */
+.selbar__count + .btn,
+.selbar__gap {
+  padding: 0 20rpx;
+  font-size: 24rpx;
+}
+
+/* ==================== 离屏合成画布 ==================== */
+
+.composer {
+  position: fixed;
+  top: 0;
+  left: -2000px;
+}

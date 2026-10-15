@@ -1,4 +1,8 @@
 {
   "navigationBarTitleText": "试衣间",
-  "usingComponents": {}
+  "usingComponents": {
+    "clothing-selector": "/components/clothing-selector/clothing-selector",
+    "image-canvas": "/components/image-canvas/image-canvas",
+    "empty-state": "/components/empty-state/empty-state"
+  }
 }

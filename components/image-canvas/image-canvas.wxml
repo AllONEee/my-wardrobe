@@ -1,0 +1,10 @@
+<!-- canvas 的具体尺寸由使用方的样式决定（组件内部撑满宿主） -->
+<canvas
+  type="2d"
+  id="canvas"
+  class="cv"
+  bindtouchstart="onTouchStart"
+  bindtouchmove="onTouchMove"
+  bindtouchend="onTouchEnd"
+  bindtouchcancel="onTouchEnd"
+></canvas>

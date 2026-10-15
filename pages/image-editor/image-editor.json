@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "抠图",
   "disableScroll": true,
-  "usingComponents": {}
+  "usingComponents": {
+    "image-canvas": "/components/image-canvas/image-canvas"
+  }
 }

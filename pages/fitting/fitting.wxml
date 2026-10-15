@@ -1,6 +1,174 @@
-<view class="page">
-  <view class="placeholder">
-    <view class="placeholder__title">试衣间 · 占位</view>
-    <view class="placeholder__desc">第 8 步实现：搭配画布、拖拽缩放旋转、合成封面、灵感文件夹。</view>
+<view class="fit">
+  <!-- 文件夹 tab：虚拟「搭配」+ 各灵感文件夹 -->
+  <view class="tabs">
+    <scroll-view class="tabs__scroll" scroll-x>
+      <view class="tabs__row">
+        <view
+          class="tabs__item {{activeFolderId === item.id ? 'tabs__item--on' : ''}}"
+          wx:for="{{folders}}"
+          wx:key="id"
+          data-id="{{item.id}}"
+          bindtap="onTabTap"
+          bindlongpress="onTabLongPress"
+          hover-class="btn-hover"
+        >{{item.name}}</view>
+        <view class="tabs__add" bindtap="onAddFolder" hover-class="btn-hover">+</view>
+      </view>
+    </scroll-view>
   </view>
+
+  <!-- ==================== 搭配 ==================== -->
+  <block wx:if="{{isOutfitTab}}">
+    <view class="stage-wrap">
+      <movable-area id="stage" class="stage" style="width:{{areaW}}px;height:{{areaH}}px" bindtap="onStageTap">
+        <movable-view
+          class="layer"
+          wx:for="{{layers}}"
+          wx:key="id"
+          style="width:{{item.w}}px;height:{{item.h}}px;z-index:{{item.z}}"
+          x="{{item.x}}"
+          y="{{item.y}}"
+          direction="all"
+          disabled="{{item.disabled}}"
+          data-id="{{item.id}}"
+          bindchange="onLayerChange"
+          bindtouchstart="onLayerTouchStart"
+          bindtouchmove="onLayerTouchMove"
+          bindtouchend="onLayerTouchEnd"
+          bindtouchcancel="onLayerTouchEnd"
+          catchtap="onLayerTap"
+        >
+          <!-- 缩放旋转只作用在内层，movable-view 自己的位移用的是 transform，不能覆盖 -->
+          <view class="layer__inner" style="transform:rotate({{item.rotation}}deg) scale({{item.scale}})">
+            <image wx:if="{{item.image}}" class="layer__img" src="{{item.image}}" mode="aspectFit" />
+            <view wx:else class="layer__img layer__img--empty">无图</view>
+            <view class="layer__frame" wx:if="{{item.selected}}"></view>
+          </view>
+          <view
+            class="layer__del"
+            wx:if="{{item.selected}}"
+            data-id="{{item.id}}"
+            catchtap="onRemoveLayer"
+            hover-class="btn-hover"
+          >✕</view>
+        </movable-view>
+      </movable-area>
+
+      <view wx:if="{{!layers.length}}" class="stage__empty">
+        <view class="stage__empty-title">画布是空的</view>
+        <view class="stage__empty-desc">点下面的「添加衣物」把衣橱里的衣物放进来，单指拖动、双指缩放旋转</view>
+      </view>
+    </view>
+
+    <!-- 选中后的层级操作 -->
+    <view class="layerbar">
+      <block wx:if="{{selectedId}}">
+        <view class="layerbar__name ellipsis">{{selectedName}}</view>
+        <view class="layerbar__btn" bindtap="onLayerToFront" hover-class="btn-hover">置顶</view>
+        <view class="layerbar__btn" bindtap="onLayerToBack" hover-class="btn-hover">置底</view>
+        <view class="layerbar__btn" bindtap="onLayerReset" hover-class="btn-hover">复位</view>
+      </block>
+      <view wx:else class="layerbar__hint">
+        {{layers.length ? '点一下衣物可以选中它，双指捏合缩放、旋转' : '先把衣物放到画布上'}}
+      </view>
+    </view>
+
+    <!-- 已保存的搭配 -->
+    <view class="saved">
+      <view class="saved__head">
+        <text class="saved__title">我的搭配</text>
+        <text class="saved__count">{{outfits.length}} 套 · 长按可以删除</text>
+      </view>
+      <scroll-view class="saved__scroll" scroll-x wx:if="{{outfits.length}}">
+        <view class="saved__row">
+          <view
+            class="saved__item {{loadedOutfitId === item.id ? 'saved__item--on' : ''}}"
+            wx:for="{{outfits}}"
+            wx:key="id"
+            data-id="{{item.id}}"
+            bindtap="onLoadOutfit"
+            bindlongpress="onOutfitLongPress"
+            hover-class="btn-hover"
+          >
+            <image wx:if="{{item.cover}}" class="saved__img" src="{{item.cover}}" mode="aspectFit" />
+            <view wx:else class="saved__img saved__img--empty">{{item.count}} 件</view>
+          </view>
+        </view>
+      </scroll-view>
+      <view wx:else class="saved__empty">还没有保存过搭配，摆好之后点「保存搭配」</view>
+    </view>
+
+    <!-- 底部操作 -->
+    <view class="toolbar">
+      <view class="btn btn--ghost btn--sm" bindtap="onAddClothing" hover-class="btn-hover">添加衣物</view>
+      <view class="btn btn--ghost btn--sm toolbar__gap" bindtap="onDuplicate" hover-class="btn-hover">复制</view>
+      <view class="btn btn--ghost btn--sm toolbar__gap" bindtap="onClearStage" hover-class="btn-hover">清空</view>
+      <view class="btn btn--primary btn--sm toolbar__gap flex-1" bindtap="onSaveOutfit" hover-class="btn-hover">
+        保存搭配
+      </view>
+    </view>
+  </block>
+
+  <!-- ==================== 灵感 ==================== -->
+  <block wx:else>
+    <view class="insp">
+      <view class="insp__head">
+        <text class="insp__title">{{activeFolderName || '灵感'}} · {{inspirations.length}} 组</text>
+        <view class="link" bindtap="onImportImages" hover-class="btn-hover">+ 导入图片</view>
+      </view>
+
+      <view class="insp__grid" wx:if="{{inspirations.length}}">
+        <view
+          class="insp__cell"
+          wx:for="{{inspirations}}"
+          wx:key="id"
+          data-id="{{item.id}}"
+          bindtap="onInspirationTap"
+          bindlongpress="onInspirationLongPress"
+          hover-class="btn-hover"
+        >
+          <view class="insp__box {{item.selected ? 'insp__box--on' : ''}}">
+            <image wx:if="{{item.thumb}}" class="insp__img" src="{{item.thumb}}" mode="aspectFill" lazy-load />
+            <view wx:else class="insp__img insp__img--empty">无图</view>
+            <view class="insp__badge" wx:if="{{item.imageCount > 1}}">{{item.imageCount}}</view>
+            <view class="insp__check" wx:if="{{selectMode}}">{{item.selected ? '✓' : ''}}</view>
+          </view>
+          <view class="insp__note ellipsis" wx:if="{{item.note}}">{{item.note}}</view>
+          <view class="insp__meta">{{item.clothingText}}</view>
+        </view>
+      </view>
+
+      <empty-state
+        wx:else
+        text="这个文件夹还是空的"
+        desc="从相册导入几张图片当作灵感，之后可以关联衣橱里的衣物、写备注"
+        action-text="导入图片"
+        bind:action="onImportImages"
+      />
+    </view>
+
+    <!-- 多选操作栏 -->
+    <view class="toolbar" wx:if="{{selectMode}}">
+      <view class="selbar__count">已选 {{selectedCount}}</view>
+      <view class="btn btn--ghost btn--sm" bindtap="onLinkClothing" hover-class="btn-hover">关联衣物</view>
+      <view class="btn btn--ghost btn--sm selbar__gap" bindtap="onEditNote" hover-class="btn-hover">加备注</view>
+      <view class="btn btn--ghost btn--sm selbar__gap" bindtap="onMoveInspiration" hover-class="btn-hover">移动</view>
+      <view class="btn btn--danger btn--sm selbar__gap" bindtap="onDeleteInspirations" hover-class="btn-hover">删除</view>
+      <view class="selbar__cancel" bindtap="onExitSelect" hover-class="btn-hover">取消</view>
+    </view>
+  </block>
+</view>
+
+<clothing-selector
+  show="{{showSelector}}"
+  selected="{{selectorSelected}}"
+  title="{{selectorTitle}}"
+  confirm-text="确定"
+  bind:confirm="onSelectorConfirm"
+  bind:close="onSelectorClose"
+/>
+
+<!-- 合成封面的离屏画布：与画布区同宽高比，只是搬到屏幕外，别删 -->
+<view class="composer" style="width:{{compW}}px;height:{{compH}}px">
+  <image-canvas id="composer" />
 </view>

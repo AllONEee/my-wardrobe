@@ -42,15 +42,16 @@
 
   <!-- 画布 -->
   <view class="stage">
-    <canvas
-      type="2d"
+    <!-- 画布节点与触摸事件都由 image-canvas 组件管，坐标仍是画布坐标系 -->
+    <image-canvas
       id="editor"
       class="stage__canvas"
-      bindtouchstart="onTouchStart"
-      bindtouchmove="onTouchMove"
-      bindtouchend="onTouchEnd"
-      bindtouchcancel="onTouchEnd"
-    ></canvas>
+      interactive="{{true}}"
+      bind:touchstart="onTouchStart"
+      bind:touchmove="onTouchMove"
+      bind:touchend="onTouchEnd"
+      bind:touchcancel="onTouchEnd"
+    />
 
     <!-- 裁剪框：用普通视图画，拖动时不需要重绘 canvas -->
     <view wx:if="{{cropStyle}}" class="cropbox" style="{{cropStyle}}">
