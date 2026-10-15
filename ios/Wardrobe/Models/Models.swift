@@ -455,14 +455,19 @@ struct WeatherSnapshot: Hashable {
 struct AppSettings: Codable, Hashable {
     /// 衣橱卡片是否显示最近穿着日期
     var showLastWorn: Bool
+    /// 外观：system（跟随系统）/ light（浅色）/ dark（深色）
+    var appearance: String
 
-    init(showLastWorn: Bool = true) {
+    init(showLastWorn: Bool = true, appearance: String = "system") {
         self.showLastWorn = showLastWorn
+        self.appearance = appearance
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         showLastWorn = c.flexBool(.showLastWorn) ?? true
+        let raw = c.flexString(.appearance)
+        appearance = ["system", "light", "dark"].contains(raw) ? raw : "system"
     }
 }
 

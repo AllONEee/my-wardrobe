@@ -23,6 +23,7 @@ struct WardrobeApp: App {
             settings: settings,
             filter: Database.shared.getWardrobeFilter()
         )
+
     }
 
     var body: some Scene {
@@ -31,7 +32,7 @@ struct WardrobeApp: App {
                 RootTabView()
                     .environmentObject(appState)
                     .tint(Theme.primary)
-                    .preferredColorScheme(.light)
+                    .preferredColorScheme(preferredScheme)
 
                 if showSplash {
                     SplashView()
@@ -43,6 +44,15 @@ struct WardrobeApp: App {
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
                 withAnimation(.easeOut(duration: 0.45)) { showSplash = false }
             }
+        }
+    }
+
+    /// 外观：设置页选「跟随系统」时交给系统（深色 / 浅色都跟着走），选了浅色或深色就锁定
+    private var preferredScheme: ColorScheme? {
+        switch appState.settings.appearance {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil
         }
     }
 }

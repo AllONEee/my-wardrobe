@@ -22,7 +22,7 @@ struct CheckerboardBackground: View {
                         width: cell,
                         height: cell
                     )
-                    context.fill(Path(rect), with: .color(Color(hex: 0xE6E1DD)))
+                    context.fill(Path(rect), with: .color(Theme.checkerboard))
                 }
             }
         }

@@ -299,6 +299,14 @@ final class Database {
         readOutfitList().first { $0.id == id }
     }
 
+    /// 某件衣物参与过的穿搭（按创建时间倒序），衣物详情页的「历史穿搭」用它
+    func listOutfits(clothingId: String) -> [Outfit] {
+        guard !clothingId.isEmpty else { return [] }
+        return readOutfitList()
+            .filter { $0.clothingIds.contains(clothingId) }
+            .sorted { $0.createTime > $1.createTime }
+    }
+
     /// 有穿搭记录的日期，用于日记页日历打点
     func listOutfitDates() -> [String] {
         Array(Set(readOutfitList().compactMap { $0.date.isEmpty ? nil : $0.date })).sorted()

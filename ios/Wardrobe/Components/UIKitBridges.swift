@@ -50,7 +50,7 @@ struct ToastOverlayModifier: ViewModifier {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(Color(hex: 0x2E2A28).opacity(0.88))
+                    .background(Theme.toast)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .padding(.horizontal, 40)
                     .padding(.bottom, 96)

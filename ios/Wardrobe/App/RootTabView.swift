@@ -95,36 +95,57 @@ struct AppTabBar: View {
     private let titleSize: CGFloat = 12
 
     var body: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(Theme.border)
-                .frame(height: 0.5)
-            HStack(spacing: 0) {
-                ForEach(AppTab.allCases) { tab in
-                    Button {
-                        selection = tab
-                    } label: {
-                        VStack(spacing: 3) {
-                            Image(selection == tab ? tab.activeIcon : tab.icon)
-                                .renderingMode(.original)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: iconSize, height: iconSize)
-                            Text(tab.title)
-                                .font(.system(size: titleSize, weight: selection == tab ? .semibold : .regular))
-                                .foregroundStyle(selection == tab ? Theme.primary : Theme.textSub)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
+        HStack(spacing: 0) {
+            ForEach(AppTab.allCases) { tab in
+                Button {
+                    selection = tab
+                } label: {
+                    tabItem(tab)
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.top, 8)
-            .padding(.bottom, 6)
         }
-        .background {
-            Theme.card.ignoresSafeArea(edges: .bottom)
+        .frame(height: Theme.floatingBarHeight)
+        // 磨砂玻璃：用系统材质，深色 / 浅色会自动跟着变
+        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(Theme.barStroke, lineWidth: 0.5)
+        )
+        .shadow(color: Theme.barShadow, radius: 18, x: 0, y: 8)
+        .padding(.horizontal, 20)
+        .padding(.bottom, Theme.floatingBarBottomGap)
+    }
+
+    /// 一个 tab：图标 + 文字。拆成单独的方法，避免编译器在 ForEach 里推断超时
+    private func tabItem(_ tab: AppTab) -> some View {
+        let isSelected = selection == tab
+        let tint = isSelected ? Theme.primary : Theme.textSub
+        return VStack(spacing: 3) {
+            tabIcon(tab, isSelected: isSelected)
+                .frame(width: iconSize, height: iconSize)
+                .foregroundStyle(tint)
+            Text(tab.title)
+                .font(.system(size: titleSize, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(tint)
+        }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+    }
+
+    /// 选中的用小程序那套橙色图标；未选中的走模板渲染，深色模式下会自动提亮
+    @ViewBuilder
+    private func tabIcon(_ tab: AppTab, isSelected: Bool) -> some View {
+        if isSelected {
+            Image(tab.activeIcon)
+                .renderingMode(.original)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } else {
+            Image(tab.icon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
         }
     }
 }

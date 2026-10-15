@@ -236,7 +236,7 @@ struct OutfitEditView: View {
                                 StoredImage(path: item.image, mode: .fit, maxPixel: 400)
                                     .frame(maxWidth: .infinity)
                                     .aspectRatio(1, contentMode: .fit)
-                                    .background(Color(hex: 0xFAF8F7))
+                                    .background(Theme.imageWell)
                                     .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous))
                                 Button {
                                     model.remove(item.id)

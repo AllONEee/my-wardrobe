@@ -6,22 +6,41 @@
 //
 
 import SwiftUI
+import UIKit
 
 enum Theme {
     /* ==================== 颜色（对应 app.wxss 的 CSS 变量） ==================== */
 
-    static let primary = Color(hex: 0xE0745E)
-    static let primaryDark = Color(hex: 0xC75F4A)
-    static let primarySoft = Color(hex: 0xFBEDE9)
-    static let text = Color(hex: 0x2E2A28)
-    static let textSub = Color(hex: 0x8C8480)
-    static let textLight = Color(hex: 0xB3ABA6)
-    static let bg = Color(hex: 0xF7F5F3)
-    static let card = Color.white
-    static let border = Color(hex: 0xEDE7E3)
-    static let danger = Color(hex: 0xE0564F)
-    static let dangerSoft = Color(hex: 0xFDECEB)
-    static let cellHover = Color(hex: 0xFAF7F5)
+    // 每套颜色都给浅色 / 深色两个值：深色不是简单反色，背景压到暖黑、
+    // 主色稍微提亮，保证在深底上对比度依然够（也顺带照顾到深色下的白色描边）。
+    static let primary = Color.dynamic(light: 0xE0745E, dark: 0xE8836C)
+    static let primaryDark = Color.dynamic(light: 0xC75F4A, dark: 0xEFA48F)
+    static let primarySoft = Color.dynamic(light: 0xFBEDE9, dark: 0x3A2B26)
+    static let text = Color.dynamic(light: 0x2E2A28, dark: 0xF1ECE8)
+    static let textSub = Color.dynamic(light: 0x8C8480, dark: 0xA8A09A)
+    static let textLight = Color.dynamic(light: 0xB3ABA6, dark: 0x7B736D)
+    static let bg = Color.dynamic(light: 0xF7F5F3, dark: 0x151413)
+    static let card = Color.dynamic(light: 0xFFFFFF, dark: 0x232120)
+    static let border = Color.dynamic(light: 0xEDE7E3, dark: 0x393431)
+    static let danger = Color.dynamic(light: 0xE0564F, dark: 0xFF736B)
+    static let dangerSoft = Color.dynamic(light: 0xFDECEB, dark: 0x3C2523)
+    static let cellHover = Color.dynamic(light: 0xFAF7F5, dark: 0x2C2926)
+    /// 图片占位底色（衣柜卡片、弹层里的缩略图等）
+    static let imageWell = Color.dynamic(light: 0xFAF8F7, dark: 0x1D1B1A)
+    /// 编辑器里的透明棋盘格
+    static let checkerboard = Color.dynamic(light: 0xE6E1DD, dark: 0x2E2B28)
+    /// 轻提示底色
+    static let toast = Color.dynamic(light: 0x2E2A28, dark: 0x55504B, lightAlpha: 0.88, darkAlpha: 0.95)
+    /// 卡片阴影：深色下阴影几乎看不见，所以深色再补一圈描边
+    static let shadow = Color.dynamic(light: 0x000000, dark: 0x000000, lightAlpha: 0.06, darkAlpha: 0.5)
+    static let cardStroke = Color.dynamic(light: 0x000000, dark: 0x393431, lightAlpha: 0, darkAlpha: 1)
+    /// 悬浮底栏的描边
+    static let barStroke = Color.dynamic(light: 0xFFFFFF, dark: 0x4A443F, lightAlpha: 0.55, darkAlpha: 0.35)
+    static let barShadow = Color.dynamic(light: 0x000000, dark: 0x000000, lightAlpha: 0.12, darkAlpha: 0.55)
+
+    /// 悬浮底栏占的高度（页面底部要给它留位置）
+    static let floatingBarHeight: CGFloat = 68
+    static let floatingBarBottomGap: CGFloat = 6
 
     /* ==================== 尺寸 ==================== */
 
@@ -55,6 +74,26 @@ extension Color {
             opacity: alpha
         )
     }
+
+    /// 浅色 / 深色两套取值：跟随系统外观，也跟随 App 内「外观」设置
+    static func dynamic(light: UInt32, dark: UInt32, lightAlpha: Double = 1, darkAlpha: Double = 1) -> Color {
+        Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(hex: dark, alpha: darkAlpha)
+                : UIColor(hex: light, alpha: lightAlpha)
+        })
+    }
+}
+
+extension UIColor {
+    convenience init(hex: UInt32, alpha: Double = 1) {
+        self.init(
+            red: CGFloat((hex >> 16) & 0xFF) / 255.0,
+            green: CGFloat((hex >> 8) & 0xFF) / 255.0,
+            blue: CGFloat(hex & 0xFF) / 255.0,
+            alpha: CGFloat(alpha)
+        )
+    }
 }
 
 /* ==================== 卡片 ==================== */
@@ -67,7 +106,11 @@ struct CardModifier: ViewModifier {
             .padding(padding)
             .background(Theme.card)
             .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-            .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.radius, style: .continuous)
+                    .stroke(Theme.cardStroke, lineWidth: 1)
+            )
+            .shadow(color: Theme.shadow, radius: 12, x: 0, y: 4)
     }
 }
 

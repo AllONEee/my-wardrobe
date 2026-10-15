@@ -182,7 +182,7 @@ struct ImageEditorView: View {
 
             if proxy.loading || processing {
                 ZStack {
-                    Color.white.opacity(0.85)
+                    Theme.bg.opacity(0.85)
                     HStack(spacing: 8) {
                         ProgressView().scaleEffect(0.8)
                         Text(processing ? "正在识别主体…" : "图片加载中…")
@@ -205,7 +205,7 @@ struct ImageEditorView: View {
                             .foregroundStyle(Theme.textSub)
                             .padding(.horizontal, 10)
                             .frame(height: 24)
-                            .background(Color.white.opacity(0.92))
+                            .background(.ultraThinMaterial, in: Capsule())
                             .clipShape(Capsule())
                             .shadow(color: .black.opacity(0.14), radius: 4, x: 0, y: 1)
                     }

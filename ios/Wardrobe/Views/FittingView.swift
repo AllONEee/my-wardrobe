@@ -297,7 +297,7 @@ struct FittingView: View {
         ZStack(alignment: .bottomLeading) {
             Group {
                 if outfit.cover.isEmpty {
-                    Color(hex: 0xFAF8F7)
+                    Theme.imageWell
                         .overlay(
                             Text("\(outfit.count) 件")
                                 .font(.system(size: Theme.fontTiny))
@@ -305,7 +305,7 @@ struct FittingView: View {
                         )
                 } else {
                     StoredImage(path: outfit.cover, mode: .fit, maxPixel: 500)
-                        .background(Color(hex: 0xFAF8F7))
+                        .background(Theme.imageWell)
                 }
             }
             .frame(width: 84, height: 84)
@@ -384,7 +384,7 @@ struct FittingView: View {
             ZStack(alignment: .topTrailing) {
                 Group {
                     if row.thumb.isEmpty {
-                        Color(hex: 0xFAF8F7)
+                        Theme.imageWell
                             .overlay(
                                 Text("无图")
                                     .font(.system(size: Theme.fontTiny))

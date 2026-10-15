@@ -13,6 +13,16 @@ final class ClothingDetailModel: ObservableObject {
 
     @Published var item: ClothingItem?
     @Published var missing = false
+    /// 这件衣物参与过的穿搭
+    @Published var history: [HistoryRow] = []
+
+    struct HistoryRow: Identifiable, Hashable {
+        var id: String
+        var cover: String
+        var dateLabel: String
+        var note: String
+        var countText: String
+    }
 
     private var deleting = false
 
@@ -21,6 +31,9 @@ final class ClothingDetailModel: ObservableObject {
         load()
         // 编辑页保存、衣橱页加次数等都会派发这个事件
         AppState.shared.bus.on(.clothingChange, ctx: self) { [weak self] _ in
+            DispatchQueue.main.async { self?.load() }
+        }
+        AppState.shared.bus.on(.outfitChange, ctx: self) { [weak self] _ in
             DispatchQueue.main.async { self?.load() }
         }
     }
@@ -33,10 +46,30 @@ final class ClothingDetailModel: ObservableObject {
         if let item = Database.shared.getClothing(clothingId) {
             self.item = item
             missing = false
+            history = buildHistory()
             return
         }
         // 删除流程自己会提示并返回；这里再走一遍会多弹一个「已不存在」
         if !deleting { missing = true }
+    }
+
+    /// 历史穿搭：一次把衣物读成 map，别在循环里反复读
+    private func buildHistory() -> [HistoryRow] {
+        var map: [String: ClothingItem] = [:]
+        Database.shared.listClothing().forEach { map[$0.id] = $0 }
+
+        return Database.shared.listOutfits(clothingId: clothingId).map { outfit in
+            let items = outfit.clothingIds.compactMap { map[$0] }
+            let first = items.first.map { $0.coverImage.isEmpty ? $0.originalImage : $0.coverImage } ?? ""
+            return HistoryRow(
+                id: outfit.id,
+                cover: outfit.cover.isEmpty ? first : outfit.cover,
+                dateLabel: DateUtil.friendlyDate(outfit.date),
+                note: outfit.note,
+                countText: "\(items.count) 件衣物"
+                    + (outfit.seasons.isEmpty ? "" : " · " + outfit.seasons.joined(separator: "/"))
+            )
+        }
     }
 
     var image: String {
@@ -112,6 +145,7 @@ struct ClothingDetailView: View {
     @State private var showEdit = false
     @State private var showEditor = false
     @State private var confirmDelete = false
+    @State private var historyOutfitId: String?
 
     init(clothingId: String) {
         self.clothingId = clothingId
@@ -129,6 +163,7 @@ struct ClothingDetailView: View {
                     if !item.note.isEmpty {
                         noteCard(item.note)
                     }
+                    historySection
                     Text("添加于 \(model.createTimeText)")
                         .font(.system(size: Theme.fontTiny))
                         .foregroundStyle(Theme.textLight)
@@ -148,6 +183,9 @@ struct ClothingDetailView: View {
             ImageEditorView(source: model.recutSource) { path in
                 model.applyRecut(path)
             }
+        }
+        .navigationDestination(item: $historyOutfitId) { id in
+            OutfitDetailView(outfitId: id)
         }
         .fullScreenCover(isPresented: $showPreview) {
             ImagePreviewSheet(paths: [model.image], isPresented: $showPreview)
@@ -285,6 +323,91 @@ struct ClothingDetailView: View {
         .padding(12)
         .cardStyle()
         .padding(.top, 12)
+    }
+
+    /* ==================== 历史穿搭 ==================== */
+
+    /// 这件衣物参与过的穿搭：点一行进那套穿搭的详情
+    private var historySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 4) {
+                Text("历史穿搭")
+                    .font(.system(size: Theme.fontCaption))
+                    .foregroundStyle(Theme.textSub)
+                Text(model.history.isEmpty ? "· 还没有记录" : "· \(model.history.count) 套")
+                    .font(.system(size: Theme.fontCaption))
+                    .foregroundStyle(Theme.textLight)
+                Spacer()
+            }
+            .padding(.top, 12)
+            .padding(.bottom, model.history.isEmpty ? 12 : 4)
+
+            if model.history.isEmpty {
+                Text("记一套穿它的搭配，之后这里会按时间列出（去「日记 → 添加穿搭」或者试衣间保存搭配）")
+                    .font(.system(size: Theme.fontTiny))
+                    .foregroundStyle(Theme.textLight)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 10)
+            } else {
+                ForEach(model.history) { row in
+                    Button {
+                        historyOutfitId = row.id
+                    } label: {
+                        historyRow(row)
+                    }
+                    .buttonStyle(.plain)
+                    if row.id != model.history.last?.id {
+                        Rectangle().fill(Theme.border).frame(height: 0.5)
+                    }
+                }
+                .padding(.bottom, 4)
+            }
+        }
+        .padding(.horizontal, 12)
+        .cardStyle()
+        .padding(.top, 12)
+    }
+
+    private func historyRow(_ row: ClothingDetailModel.HistoryRow) -> some View {
+        HStack(spacing: 10) {
+            Group {
+                if row.cover.isEmpty {
+                    Theme.imageWell
+                        .overlay(
+                            Text("无图")
+                                .font(.system(size: Theme.fontTiny))
+                                .foregroundStyle(Theme.textLight)
+                        )
+                } else {
+                    StoredImage(path: row.cover, mode: .fit, maxPixel: 300)
+                        .background(Theme.imageWell)
+                }
+            }
+            .frame(width: 52, height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(row.dateLabel)
+                    .font(.system(size: Theme.fontBody))
+                    .foregroundStyle(Theme.text)
+                if !row.note.isEmpty {
+                    Text(row.note)
+                        .font(.system(size: Theme.fontSmall))
+                        .foregroundStyle(Theme.textSub)
+                        .lineLimit(1)
+                }
+                Text(row.countText)
+                    .font(.system(size: Theme.fontTiny))
+                    .foregroundStyle(Theme.textLight)
+            }
+
+            Spacer(minLength: 4)
+            Text("›")
+                .font(.system(size: 15))
+                .foregroundStyle(Theme.textLight)
+        }
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
     }
 
     /* ==================== 底部操作 ==================== */

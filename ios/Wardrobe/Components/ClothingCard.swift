@@ -21,7 +21,7 @@ struct ClothingCard: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
-                Color(hex: 0xFAF8F7)
+                Theme.imageWell
                 if image.isEmpty {
                     Text("暂无图片")
                         .font(.system(size: Theme.fontTiny))

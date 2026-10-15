@@ -238,7 +238,7 @@ struct ClothingEditView: View {
         VStack(spacing: 0) {
             ZStack {
                 RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous)
-                    .fill(Color(hex: 0xFAF8F7))
+                    .fill(Theme.imageWell)
                 if model.coverImage.isEmpty {
                     VStack(spacing: 6) {
                         Text("+")

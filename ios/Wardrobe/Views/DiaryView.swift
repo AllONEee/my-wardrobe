@@ -702,7 +702,7 @@ struct DiaryView: View {
                 Group {
                     if row.cover.isEmpty {
                         RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous)
-                            .fill(Color(hex: 0xFAF8F7))
+                            .fill(Theme.imageWell)
                             .overlay(
                                 Text("暂无封面")
                                     .font(.system(size: Theme.fontTiny))
@@ -710,7 +710,7 @@ struct DiaryView: View {
                             )
                     } else {
                         StoredImage(path: row.cover, mode: .fit, maxPixel: 700)
-                            .background(Color(hex: 0xFAF8F7))
+                            .background(Theme.imageWell)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous))
                     }
                 }
@@ -740,7 +740,7 @@ struct DiaryView: View {
                         ForEach(row.thumbs) { thumb in
                             StoredImage(path: thumb.image, mode: .fill, maxPixel: 300)
                                 .frame(width: 38, height: 38)
-                                .background(Color(hex: 0xFAF8F7))
+                                .background(Theme.imageWell)
                                 .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous))
                         }
                         if row.more > 0 {

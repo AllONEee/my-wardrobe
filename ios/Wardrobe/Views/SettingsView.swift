@@ -15,7 +15,12 @@
 import SwiftUI
 
 final class SettingsModel: ObservableObject {
-    static let version = "1.0.0"
+    /// 版本号直接读 App 包里的（跟着 Xcode 的 MARKETING_VERSION 走，这里不用手动同步）
+    static var version: String {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(short) (\(build))"
+    }
 
     @Published var settings = AppSettings()
     @Published var clothingCount = 0
@@ -170,6 +175,12 @@ final class SettingsModel: ObservableObject {
         settings = Database.shared.getSettings()
     }
 
+    /// 外观：system / light / dark（写入设置后由 App 入口统一应用）
+    func setAppearance(_ value: String) {
+        Database.shared.saveSettings { $0.appearance = value }
+        settings = Database.shared.getSettings()
+    }
+
     /* ==================== 导出 ==================== */
 
     func exportToFile() {
@@ -294,6 +305,25 @@ struct SettingsView: View {
                 .tint(Theme.primary)
             }
             .frame(height: Theme.cellHeight)
+            .cellDivider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("外观")
+                    .font(.system(size: Theme.fontBody))
+                    .foregroundStyle(Theme.text)
+                Picker("外观", selection: Binding(
+                    get: { model.settings.appearance },
+                    set: { model.setAppearance($0) }
+                )) {
+                    Text("跟随系统").tag("system")
+                    Text("浅色").tag("light")
+                    Text("深色").tag("dark")
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+            .padding(.top, 12)
+            .padding(.bottom, 14)
         }
         .padding(.horizontal, 12)
         .cardStyle()
