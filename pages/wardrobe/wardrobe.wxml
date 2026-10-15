@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="placeholder">
+    <view class="placeholder__title">衣柜页 · 占位</view>
+    <view class="placeholder__desc">第 3 步实现：筛选栏、搜索、3 列网格、点卡片计次、悬浮 + 按钮。</view>
+  </view>
+</view>

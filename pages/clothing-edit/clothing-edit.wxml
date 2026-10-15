@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="placeholder">
+    <view class="placeholder__title">添加/编辑衣物 · 占位</view>
+    <view class="placeholder__desc">第 4 步实现。</view>
+  </view>
+</view>

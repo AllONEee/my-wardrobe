@@ -1,0 +1,60 @@
+{
+  "pages": [
+    "pages/wardrobe/wardrobe",
+    "pages/diary/diary",
+    "pages/fitting/fitting",
+    "pages/settings/settings",
+    "pages/clothing-edit/clothing-edit",
+    "pages/clothing-detail/clothing-detail",
+    "pages/outfit-edit/outfit-edit",
+    "pages/outfit-detail/outfit-detail",
+    "pages/image-editor/image-editor"
+  ],
+  "window": {
+    "backgroundColor": "#F7F5F3",
+    "backgroundTextStyle": "dark",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTitleText": "我的衣橱",
+    "navigationBarTextStyle": "black"
+  },
+  "tabBar": {
+    "color": "#9B918C",
+    "selectedColor": "#E0745E",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/wardrobe/wardrobe",
+        "text": "衣橱",
+        "iconPath": "assets/tabbar/wardrobe.png",
+        "selectedIconPath": "assets/tabbar/wardrobe-active.png"
+      },
+      {
+        "pagePath": "pages/diary/diary",
+        "text": "日记",
+        "iconPath": "assets/tabbar/diary.png",
+        "selectedIconPath": "assets/tabbar/diary-active.png"
+      },
+      {
+        "pagePath": "pages/fitting/fitting",
+        "text": "试衣间",
+        "iconPath": "assets/tabbar/fitting.png",
+        "selectedIconPath": "assets/tabbar/fitting-active.png"
+      },
+      {
+        "pagePath": "pages/settings/settings",
+        "text": "设置",
+        "iconPath": "assets/tabbar/settings.png",
+        "selectedIconPath": "assets/tabbar/settings-active.png"
+      }
+    ]
+  },
+  "networkTimeout": {
+    "request": 20000,
+    "uploadFile": 60000,
+    "downloadFile": 60000
+  },
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json"
+}

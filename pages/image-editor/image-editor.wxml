@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="placeholder">
+    <view class="placeholder__title">图片编辑（抠图） · 占位</view>
+    <view class="placeholder__desc">第 5 步实现。</view>
+  </view>
+</view>

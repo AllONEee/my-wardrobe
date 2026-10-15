@@ -1,0 +1,354 @@
+/* app.wxss —— 全局设计变量与公共样式
+ * 变量定义在 page 上，自定义组件内部可以通过继承拿到（组件默认 styleIsolation: isolated，
+ * 拿不到 app.wxss 的类，但 CSS 变量是继承属性，可以在组件内部使用 var(--xxx)）。
+ */
+
+page {
+  --primary: #e0745e;
+  --primary-dark: #c75f4a;
+  --primary-soft: #fbede9;
+  --text: #2e2a28;
+  --text-sub: #8c8480;
+  --text-light: #b3aba6;
+  --bg: #f7f5f3;
+  --card: #ffffff;
+  --border: #ede7e3;
+  --danger: #e0564f;
+  --danger-soft: #fdeceb;
+  --radius: 24rpx;
+  --radius-sm: 12rpx;
+  --radius-lg: 32rpx;
+  --shadow: 0 8rpx 24rpx rgba(46, 42, 40, 0.06);
+  --shadow-up: 0 -8rpx 24rpx rgba(46, 42, 40, 0.06);
+
+  background-color: var(--bg);
+  color: var(--text);
+  font-size: 28rpx;
+  line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Helvetica, Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------- 布局容器 ---------------- */
+
+.page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 24rpx;
+}
+
+/* 带 tabBar 的页面：给底部悬浮按钮留位置 */
+.page--tabbar {
+  padding-bottom: 200rpx;
+}
+
+/* 底部有固定操作栏的页面：给操作栏留位置 */
+.page--toolbar {
+  padding-bottom: 180rpx;
+}
+
+.page--plain {
+  padding: 0;
+}
+
+.card {
+  box-sizing: border-box;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.row-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-1 {
+  flex: 1;
+  min-width: 0;
+}
+
+.wrap {
+  flex-wrap: wrap;
+}
+
+.gap-8 {
+  margin-right: 8rpx;
+}
+
+.gap-16 {
+  margin-right: 16rpx;
+}
+
+/* ---------------- 文本 ---------------- */
+
+.title {
+  font-size: 34rpx;
+  font-weight: 600;
+}
+
+.subtitle {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.text-sub {
+  color: var(--text-sub);
+  font-size: 24rpx;
+}
+
+.text-light {
+  color: var(--text-light);
+  font-size: 24rpx;
+}
+
+.ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ellipsis-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.section-title {
+  margin: 32rpx 8rpx 16rpx;
+  color: var(--text-sub);
+  font-size: 24rpx;
+  letter-spacing: 2rpx;
+}
+
+/* ---------------- 按钮 ---------------- */
+
+button {
+  padding: 0;
+  background: transparent;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+button::after {
+  border: none;
+}
+
+.btn {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 84rpx;
+  padding: 0 36rpx;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+.btn--primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn--soft {
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+
+.btn--ghost {
+  background: var(--card);
+  color: var(--text);
+  border: 1rpx solid var(--border);
+}
+
+.btn--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.btn--sm {
+  height: 64rpx;
+  padding: 0 28rpx;
+  font-size: 26rpx;
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn--disabled {
+  opacity: 0.45;
+}
+
+.btn-hover {
+  opacity: 0.8;
+}
+
+/* ---------------- 标签 ---------------- */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 48rpx;
+  margin: 0 12rpx 12rpx 0;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  background: var(--bg);
+  color: var(--text-sub);
+  font-size: 24rpx;
+}
+
+.tag--active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.tag--soft {
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+}
+
+/* ---------------- 列表 / 表单单元格 ---------------- */
+
+.cell {
+  display: flex;
+  align-items: center;
+  min-height: 104rpx;
+  padding: 0 8rpx;
+  border-bottom: 1rpx solid var(--border);
+}
+
+.cell:last-child {
+  border-bottom: none;
+}
+
+.cell-label {
+  width: 180rpx;
+  color: var(--text-sub);
+  font-size: 28rpx;
+}
+
+.cell-value {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 72rpx;
+  font-size: 28rpx;
+  text-align: right;
+}
+
+.textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 180rpx;
+  padding: 20rpx;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 28rpx;
+}
+
+.placeholder-text {
+  color: var(--text-light);
+}
+
+.divider {
+  height: 1rpx;
+  background: var(--border);
+}
+
+/* ---------------- 悬浮按钮 ---------------- */
+
+.fab {
+  display: flex;
+  position: fixed;
+  right: 40rpx;
+  bottom: calc(140rpx + env(safe-area-inset-bottom));
+  z-index: 20;
+  align-items: center;
+  justify-content: center;
+  width: 108rpx;
+  height: 108rpx;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 12rpx 32rpx rgba(224, 116, 94, 0.38);
+  color: #fff;
+  font-size: 60rpx;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.fab--non-tabbar {
+  bottom: calc(60rpx + env(safe-area-inset-bottom));
+}
+
+/* ---------------- 底部固定操作栏 ---------------- */
+
+.toolbar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow-up);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ---------------- 占位页（后续步骤会替换成正式页面） ---------------- */
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 70vh;
+  padding: 60rpx 40rpx;
+  text-align: center;
+}
+
+.placeholder__title {
+  margin-bottom: 16rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.placeholder__desc {
+  max-width: 520rpx;
+  color: var(--text-sub);
+  font-size: 26rpx;
+  line-height: 1.7;
+}

@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="placeholder">
+    <view class="placeholder__title">设置 · 占位</view>
+    <view class="placeholder__desc">第 9 步实现：显示设置、导出 JSON、清空数据、关于。</view>
+  </view>
+</view>

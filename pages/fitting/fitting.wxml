@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="placeholder">
+    <view class="placeholder__title">试衣间 · 占位</view>
+    <view class="placeholder__desc">第 8 步实现：搭配画布、拖拽缩放旋转、合成封面、灵感文件夹。</view>
+  </view>
+</view>

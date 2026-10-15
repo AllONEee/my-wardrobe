@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="placeholder">
+    <view class="placeholder__title">穿搭详情 · 占位</view>
+    <view class="placeholder__desc">第 7 步实现。</view>
+  </view>
+</view>

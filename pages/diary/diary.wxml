@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="placeholder">
+    <view class="placeholder__title">穿搭日记 · 占位</view>
+    <view class="placeholder__desc">第 7 步实现：日历打点、按天看穿搭、每天多套穿搭与封面。</view>
+  </view>
+</view>

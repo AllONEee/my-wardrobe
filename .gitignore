@@ -1,0 +1,18 @@
+# 微信开发者工具的「个人/本地」配置：每台机器、每个人的都不一样，不要提交
+# （project.json 里的 appid、libVersion、编译设置属于团队共享配置，需要提交）
+project.private.config.json
+
+# macOS 系统垃圾文件
+.DS_Store
+._*
+
+# 依赖与 npm 构建产物（本项目不使用 npm，留着以防将来引入）
+node_modules/
+miniprogram_npm/
+
+# 日志与临时文件
+*.log
+*.tmp
+
+# CI 导出的数据包（设置页「导出 JSON」的产物）
+exports/
