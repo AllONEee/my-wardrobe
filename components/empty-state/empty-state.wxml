@@ -1,0 +1,14 @@
+<view class="empty">
+  <!-- 纯 CSS 画的占位图，不引入图片资源 -->
+  <view class="empty__art">
+    <view class="empty__art-line"></view>
+    <view class="empty__art-line empty__art-line--short"></view>
+  </view>
+
+  <view class="empty__title">{{text}}</view>
+  <view class="empty__desc" wx:if="{{desc}}">{{desc}}</view>
+
+  <view wx:if="{{actionText}}" class="empty__action" bindtap="onAction" hover-class="btn-hover">
+    {{actionText}}
+  </view>
+</view>

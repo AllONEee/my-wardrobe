@@ -1,0 +1,20 @@
+<view class="ccard" bindtap="onCardTap" hover-class="ccard--hover" hover-stay-time="60">
+  <!-- 图片区域：catchtap 阻止冒泡，点图不会触发卡片上的 wearCount++ -->
+  <view class="ccard__media" catchtap="onImageTap">
+    <image wx:if="{{image}}" class="ccard__img" src="{{image}}" mode="aspectFit" lazy-load />
+    <view wx:else class="ccard__placeholder">暂无图片</view>
+
+    <view wx:if="{{showWearCount && item.wearCount > 0}}" class="ccard__wear">{{item.wearCount}} 次</view>
+  </view>
+
+  <view class="ccard__meta">
+    <view class="ccard__name">{{item.name}}</view>
+    <view class="ccard__sub">
+      <text>{{item.category}}</text>
+      <block wx:if="{{lastWornText}}">
+        <text class="ccard__dot">·</text>
+        <text>{{lastWornText}}</text>
+      </block>
+    </view>
+  </view>
+</view>

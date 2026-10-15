@@ -1,4 +1,8 @@
 {
   "navigationBarTitleText": "衣橱",
-  "usingComponents": {}
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "clothing-card": "/components/clothing-card/clothing-card",
+    "empty-state": "/components/empty-state/empty-state"
+  }
 }

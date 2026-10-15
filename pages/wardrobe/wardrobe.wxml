@@ -1,6 +1,81 @@
-<view class="page">
-  <view class="placeholder">
-    <view class="placeholder__title">衣柜页 · 占位</view>
-    <view class="placeholder__desc">第 3 步实现：筛选栏、搜索、3 列网格、点卡片计次、悬浮 + 按钮。</view>
+<view class="page page--tabbar">
+  <!-- 搜索：按名称和备注 -->
+  <view class="search">
+    <view class="search__box">
+      <view class="search__icon"></view>
+      <input
+        class="search__input"
+        value="{{keyword}}"
+        placeholder="搜索名称或备注"
+        placeholder-class="placeholder-text"
+        confirm-type="search"
+        bindinput="onKeywordInput"
+        bindconfirm="onKeywordConfirm"
+      />
+      <view wx:if="{{keyword}}" class="search__clear" catchtap="onClearKeyword">✕</view>
+    </view>
   </view>
+
+  <!-- 筛选：分类 / 季节 -->
+  <view class="filters">
+    <view class="filters__row">
+      <view class="filters__label">分类</view>
+      <scroll-view class="filters__scroll" scroll-x>
+        <view class="filters__chips">
+          <view
+            class="tag {{filter.category === item ? 'tag--active' : ''}}"
+            wx:for="{{categories}}"
+            wx:key="*this"
+            data-value="{{item}}"
+            bindtap="onCategoryTap"
+            hover-class="btn-hover"
+          >{{item}}</view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <view class="filters__row">
+      <view class="filters__label">季节</view>
+      <scroll-view class="filters__scroll" scroll-x>
+        <view class="filters__chips">
+          <view
+            class="tag {{filter.season === item ? 'tag--active' : ''}}"
+            wx:for="{{seasons}}"
+            wx:key="*this"
+            data-value="{{item}}"
+            bindtap="onSeasonTap"
+            hover-class="btn-hover"
+          >{{item}}</view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <view class="summary">
+    <text class="summary__count">共 {{list.length}} 件<text wx:if="{{hasFilter}}"> · 全部 {{total}} 件</text></text>
+    <text wx:if="{{hasFilter}}" class="link" bindtap="onResetFilter">清除筛选</text>
+  </view>
+
+  <!-- 网格：每行 3 个 -->
+  <view class="grid" wx:if="{{list.length}}">
+    <view class="grid__cell" wx:for="{{list}}" wx:key="id">
+      <clothing-card
+        item="{{item}}"
+        show-last-worn="{{showLastWorn}}"
+        bind:tapimage="onOpenDetail"
+        bind:tapcard="onWearOnce"
+      />
+    </view>
+  </view>
+
+  <empty-state
+    wx:else
+    text="{{emptyType === 'empty' ? '衣橱还是空的' : '没有匹配的衣物'}}"
+    desc="{{emptyType === 'empty' ? '点右下角的 + 添加第一件衣物，添加时可以顺手抠掉背景' : '换个关键词，或者清除筛选条件试试'}}"
+    action-text="{{emptyType === 'empty' ? '添加衣物' : '清除筛选'}}"
+    bind:action="onEmptyAction"
+  />
 </view>
+
+<!-- 悬浮添加按钮 -->
+<view class="fab" bindtap="onAdd" hover-class="btn-hover">+</view>

@@ -1,0 +1,82 @@
+:host {
+  display: block;
+}
+
+.ccard {
+  overflow: hidden;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: background 0.15s ease;
+}
+
+.ccard--hover {
+  background: #f6f2f0;
+}
+
+/* 1:1 的图片区：用 padding-bottom 撑高度，保证各种屏宽下都是正方形 */
+.ccard__media {
+  position: relative;
+  padding-bottom: 100%;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: #faf8f7;
+}
+
+.ccard__img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ccard__placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--text-light);
+  font-size: 22rpx;
+}
+
+.ccard__wear {
+  position: absolute;
+  right: 10rpx;
+  bottom: 10rpx;
+  height: 34rpx;
+  padding: 0 12rpx;
+  border-radius: 999rpx;
+  background: rgba(46, 42, 40, 0.55);
+  color: #fff;
+  font-size: 20rpx;
+  line-height: 34rpx;
+}
+
+.ccard__meta {
+  padding: 14rpx 16rpx 18rpx;
+}
+
+.ccard__name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 26rpx;
+  line-height: 1.35;
+}
+
+.ccard__sub {
+  margin-top: 4rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text-sub);
+  font-size: 22rpx;
+}
+
+.ccard__dot {
+  margin: 0 6rpx;
+}
