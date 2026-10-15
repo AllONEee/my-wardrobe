@@ -186,7 +186,6 @@ struct OutfitEditView: View {
 
     @StateObject private var model: OutfitEditModel
     /// 悬浮底栏占掉的高度：页面里自带的底部操作栏要按它往上让
-    @Environment(\.floatingBarInset) private var floatingBarInset
     @Environment(\.dismiss) private var dismiss
     @State private var showDatePicker = false
     @State private var showPhotoPicker = false
@@ -211,7 +210,6 @@ struct OutfitEditView: View {
                     .font(.system(size: Theme.fontCaption))
                     .foregroundStyle(Theme.textLight)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 4)
                     .padding(.top, 12)
             }
             .padding(Theme.pagePadding)
@@ -455,19 +453,13 @@ struct OutfitEditView: View {
     }
 
     private var saveBar: some View {
-        VStack(spacing: 0) {
-            Rectangle().fill(Theme.border).frame(height: 0.5)
+        FloatingActionBar {
             Button("保存穿搭") {
                 if model.save() {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { dismiss() }
                 }
             }
             .buttonStyle(AppButtonStyle(kind: .primary, fullWidth: true))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
         }
-        .background(Theme.card)
-        // 悬浮底栏浮在页面之上，这条保存栏往上让开
-        .padding(.bottom, floatingBarInset)
     }
 }

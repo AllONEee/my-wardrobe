@@ -180,7 +180,6 @@ final class StatsModel: ObservableObject {
 
 struct StatsView: View {
     @StateObject private var model = StatsModel()
-    @Environment(\.floatingBarInset) private var floatingBarInset
     @State private var detailId: String?
 
     var body: some View {

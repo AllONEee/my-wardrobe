@@ -275,7 +275,6 @@ struct SettingsView: View {
 
     @StateObject private var model = SettingsModel()
     /// 悬浮底栏占掉的高度：页面里自带的底部操作栏要按它往上让
-    @Environment(\.floatingBarInset) private var floatingBarInset
     @State private var showExportOptions = false
     @State private var showShareSheet = false
     @State private var showBackupSheet = false
@@ -540,6 +539,8 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 12)
         .cardStyle()
+        // 和上面的「衣物分类」是同一节里的两张卡，中间要留出空隙
+        .padding(.top, 10)
     }
 
     /* ==================== 抠图 ==================== */

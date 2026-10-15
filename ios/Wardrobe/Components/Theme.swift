@@ -104,6 +104,78 @@ private struct FloatingBarInsetKey: EnvironmentKey {
     static let defaultValue: CGFloat = 0
 }
 
+/* ==================== 磨砂玻璃（底栏 / 二级页面的悬浮操作条共用） ==================== */
+
+/// iOS 26 起用系统的 Liquid Glass，更早的系统退回 ultraThinMaterial —— 两种都是真·半透明
+struct GlassCapsuleModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        let shape = Capsule(style: .continuous)
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular, in: shape)
+        } else {
+            content
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(shape.stroke(Theme.barStroke, lineWidth: 0.5))
+        }
+    }
+}
+
+extension View {
+    func glassCapsule() -> some View {
+        modifier(GlassCapsuleModifier())
+    }
+}
+
+/// 键盘状态：编辑页的悬浮操作条要据此决定还给不给底栏让位
+/// （键盘弹起来的时候，底栏被键盘挡住，操作条应该贴着键盘，而不是再往上让 74pt）
+final class KeyboardState: ObservableObject {
+    static let shared = KeyboardState()
+
+    @Published private(set) var visible = false
+
+    private init() {
+        let center = NotificationCenter.default
+        center.addObserver(
+            forName: UIResponder.keyboardWillShowNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.visible = true
+        }
+        center.addObserver(
+            forName: UIResponder.keyboardWillHideNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.visible = false
+        }
+    }
+}
+
+/// 二级页面底部的悬浮操作条。
+///
+/// 原来是「白底 + 分割线」的一条，钉在页面底部，和 App 的悬浮 tab 栏叠在一起会
+/// 露出一条突兀的白带（内容还从玻璃下面穿过去）。现在换成和底栏同一套磨砂玻璃胶囊：
+/// 浮在 tab 栏上方，四周是透明的，内容从它下面滚过去。
+struct FloatingActionBar<Content: View>: View {
+    @ObservedObject private var keyboard = KeyboardState.shared
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        HStack(spacing: 8) {
+            content()
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 56)
+        .glassCapsule()
+        .shadow(color: Theme.barShadow, radius: 18, x: 0, y: 8)
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        // 给底栏让位；键盘弹起来时底栏被挡住，就让操作条贴着键盘
+        .padding(.bottom, keyboard.visible ? 8 : (Theme.floatingBarBottomGap + Theme.floatingBarHeight + 6))
+    }
+}
+
 extension EnvironmentValues {
     /// 底栏实际占掉的高度（高度 + 间距）。页面里自己固定在底部的操作栏加上这个内边距，
     /// 就会落在悬浮底栏的上方，而不是被压在后面。

@@ -116,7 +116,8 @@ final class FittingModel: ObservableObject {
     /// 合成封面与画布保持同样的宽高比，导出的图才和屏幕上看到的一致
     func setLayout(pageWidth: CGFloat, pageHeight: CGFloat) {
         guard pageWidth > 0, pageHeight > 0 else { return }
-        let areaW = max(280, (pageWidth - 12).rounded())
+        // 页面左右各留 12pt（和 FittingView 的 padding 一致，画布才不会顶出去）
+        let areaW = max(280, (pageWidth - 24).rounded())
         let areaH = max(240, min((areaW * 1.08).rounded(), (pageHeight - 125).rounded()))
         let size = CGSize(width: areaW, height: areaH)
         let box = (min(areaW, areaH) * 0.44).rounded()

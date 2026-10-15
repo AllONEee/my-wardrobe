@@ -13,7 +13,7 @@ struct SectionTitle: View {
             .font(.system(size: Theme.fontCaption))
             .foregroundStyle(Theme.textSub)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 4)
+            // 左边界和下面的卡片对齐（页面本身已经留了 12pt）
             .padding(.top, 16)
             .padding(.bottom, 8)
     }

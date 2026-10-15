@@ -313,21 +313,13 @@ struct ImageEditorView: View {
     /* ==================== 底部确认栏 ==================== */
 
     private var confirmBar: some View {
-        HStack(spacing: 10) {
+        FloatingActionBar {
             Button("取消") { dismiss() }
                 .buttonStyle(AppButtonStyle(kind: .ghost, fullWidth: true))
             Button(exporting ? "生成中…" : "确定") { confirm() }
                 .buttonStyle(AppButtonStyle(kind: .primary, fullWidth: true))
                 .disabled(exporting || processing)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .overlay(alignment: .top) {
-            Rectangle().fill(Theme.border).frame(height: 0.5)
-        }
-        .background(Theme.card)
-        // 悬浮底栏浮在页面之上，这条确认栏往上让开
-        .padding(.bottom, floatingBarInset)
     }
 
     /* ==================== 动作 ==================== */

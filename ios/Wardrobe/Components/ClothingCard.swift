@@ -86,7 +86,8 @@ struct ClothingCard: View {
                 }
             }
 
-            if showWearCount && item.wearCount > 0 {
+            // 多选时右上角让给勾选圈，次数就不显示了（免得两个角标叠在一起）
+            if showWearCount && item.wearCount > 0 && selected == nil {
                 corner(alignment: .topTrailing) {
                     capsule("\(item.wearCount) 次", fill: Color(hex: 0x2E2A28).opacity(0.55))
                 }

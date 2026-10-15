@@ -57,7 +57,6 @@ final class TagManagerModel: ObservableObject {
 
 struct TagManagerView: View {
     @StateObject private var model = TagManagerModel()
-    @Environment(\.floatingBarInset) private var floatingBarInset
     @State private var renameTarget: String = ""
     @State private var showRename = false
     @State private var deleteTarget: String = ""
@@ -78,7 +77,6 @@ struct TagManagerView: View {
                         .font(.system(size: Theme.fontTiny))
                         .foregroundStyle(Theme.textLight)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 4)
                         .padding(.top, 12)
                 }
             }

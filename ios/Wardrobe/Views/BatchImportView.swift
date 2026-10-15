@@ -144,7 +144,6 @@ final class BatchImportModel: ObservableObject {
 
 struct BatchImportView: View {
     @StateObject private var model = BatchImportModel()
-    @Environment(\.floatingBarInset) private var floatingBarInset
     @Environment(\.dismiss) private var dismiss
 
     @State private var showPicker = false
@@ -215,7 +214,6 @@ struct BatchImportView: View {
                 .font(.system(size: Theme.fontSmall))
                 .foregroundStyle(Theme.primary)
         }
-        .padding(.horizontal, 4)
         .padding(.bottom, 8)
     }
 
@@ -280,21 +278,14 @@ struct BatchImportView: View {
     }
 
     private var saveBar: some View {
-        VStack(spacing: 0) {
-            Rectangle().fill(Theme.border).frame(height: 0.5)
-            HStack(spacing: 8) {
-                Button("统一分类") { showAllCategory = true }
-                    .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
-                Button("导入 \(model.items.count) 件") {
-                    _ = model.save()
-                }
-                .buttonStyle(AppButtonStyle(kind: .primary, small: true))
-                .frame(maxWidth: .infinity)
+        FloatingActionBar {
+            Button("统一分类") { showAllCategory = true }
+                .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+            Button("导入 \(model.items.count) 件") {
+                _ = model.save()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .buttonStyle(AppButtonStyle(kind: .primary, small: true))
+            .frame(maxWidth: .infinity)
         }
-        .background(Theme.card)
-        .padding(.bottom, floatingBarInset)
     }
 }

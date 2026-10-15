@@ -1,7 +1,9 @@
 //
 //  FittingView.swift —— 试衣间（对应 pages/fitting）
 //
-//  页面结构：顶部文件夹 tab（搭配 + 各灵感文件夹）→ 画布 / 灵感网格 → 底部操作栏。
+//  页面结构：顶部文件夹 tab（搭配 + 各灵感文件夹）→ 操作栏 → 画布 / 灵感网格 → 我的搭配。
+//  「搭配」页的操作栏跟着页面一起滚（不钉在底部）；灵感的「选择模式」是临时状态，
+//  那一排操作留在底部，和衣橱的多选保持一致。
 //  具体逻辑都在 FittingModel 里（见 FittingModel.swift），这里只负责摆位置和弹层。
 //
 
@@ -12,8 +14,6 @@ struct FittingView: View {
 
     @StateObject private var model = FittingModel()
     /// 悬浮底栏占掉的高度：页面里自带的底部操作栏要按它往上让
-    @Environment(\.floatingBarInset) private var floatingBarInset
-
     @State private var showImportPicker = false
     @State private var showCreateFolder = false
     @State private var renameTarget: FittingFolder?
@@ -33,20 +33,22 @@ struct FittingView: View {
 
     var body: some View {
         GeometryReader { geo in
-            VStack(spacing: 0) {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        folderTabs
-                        if model.isOutfitTab {
-                            outfitSection
-                        } else {
-                            inspirationSection
-                        }
+            ScrollView {
+                VStack(spacing: 0) {
+                    folderTabs
+                    if model.isOutfitTab {
+                        outfitActions
+                        outfitSection
+                    } else {
+                        inspirationSection
                     }
-                    .padding(.horizontal, 6)
-                    .padding(.bottom, 12)
                 }
-                bottomBar
+                // 和全 App 一致：页面左右各留 12pt（画布也跟着收窄，见 FittingModel.setLayout）
+                .padding(.horizontal, Theme.pagePadding)
+                .padding(.bottom, Theme.floatingBarSpace)
+            }
+            .safeAreaInset(edge: .bottom) {
+                if !model.isOutfitTab && model.selectMode { selectBar }
             }
             .onAppear {
                 model.setLayout(pageWidth: geo.size.width, pageHeight: geo.size.height)
@@ -247,7 +249,6 @@ struct FittingView: View {
                 Spacer()
             }
         }
-        .padding(.horizontal, 6)
         .padding(.top, 10)
         .padding(.bottom, 6)
     }
@@ -263,14 +264,12 @@ struct FittingView: View {
                     .font(.system(size: Theme.fontTiny))
                     .foregroundStyle(Theme.textLight)
             }
-            .padding(.horizontal, 6)
 
             ChipRow([Wardrobe.all] + Wardrobe.seasons) { value in
                 TagChip(title: value, active: value == model.outfitSeason) {
                     model.selectOutfitSeason(value)
                 }
             }
-            .padding(.horizontal, 6)
 
             if model.outfits.isEmpty {
                 Text(model.outfitSeason == Wardrobe.all
@@ -278,7 +277,6 @@ struct FittingView: View {
                      : "这个季节还没有搭配，换个季节或者点「全部」看看")
                     .font(.system(size: Theme.fontCaption))
                     .foregroundStyle(Theme.textLight)
-                    .padding(.horizontal, 6)
                     .padding(.vertical, 10)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -287,7 +285,6 @@ struct FittingView: View {
                             savedThumb(outfit)
                         }
                     }
-                    .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                 }
             }
@@ -352,7 +349,6 @@ struct FittingView: View {
                     .font(.system(size: Theme.fontSmall))
                     .foregroundStyle(Theme.primary)
             }
-            .padding(.horizontal, 6)
             .padding(.vertical, 8)
 
             if model.inspirations.isEmpty {
@@ -371,7 +367,6 @@ struct FittingView: View {
                         inspirationCell(row)
                     }
                 }
-                .padding(.horizontal, 4)
             }
         }
         // 导入图片的两个入口（标题右侧的「+ 导入图片」和空态里的按钮）都长在这一块上：
@@ -453,28 +448,37 @@ struct FittingView: View {
         }
     }
 
-    /* ==================== 底部操作栏 ==================== */
+    /* ==================== 操作栏 ==================== */
 
-    private var bottomBar: some View {
-        VStack(spacing: 0) {
-            Rectangle().fill(Theme.border).frame(height: 0.5)
-            HStack(spacing: 8) {
-                if model.isOutfitTab {
-                    Button("添加衣物") { model.addClothing() }
-                        .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
-                    Button("复制") { model.duplicateOutfit() }
-                        .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
-                    Button("清空") { confirmClearStage = true }
-                        .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
-                    Button(model.saving ? "保存中…" : "保存搭配") { model.saveOutfit() }
-                        .buttonStyle(AppButtonStyle(kind: .primary, small: true))
-                        .frame(maxWidth: .infinity)
-                        .disabled(model.saving)
-                } else if model.selectMode {
-                    Text("已选 \(model.selectedCount)")
-                        .font(.system(size: Theme.fontSmall))
-                        .foregroundStyle(Theme.textSub)
-                    Spacer()
+    /// 「搭配」这一排：跟着页面一起滚，位置在文件夹 tab 与画布之间。
+    /// 进页面第一眼就能看到「添加衣物 / 保存搭配」，往下滚它会让开画面，不再占着底部。
+    private var outfitActions: some View {
+        HStack(spacing: 8) {
+            Button("添加衣物") { model.addClothing() }
+                .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+            Button("复制") { model.duplicateOutfit() }
+                .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+            Button("清空") { confirmClearStage = true }
+                .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+            Spacer(minLength: 4)
+            Button(model.saving ? "保存中…" : "保存搭配") { model.saveOutfit() }
+                .buttonStyle(AppButtonStyle(kind: .primary, small: true))
+                .disabled(model.saving)
+        }
+        .padding(.top, 2)
+        .padding(.bottom, 4)
+    }
+
+    /// 灵感的「选择模式」是临时状态（长按进入），这排操作留在底部，和衣橱的多选一致
+    private var selectBar: some View {
+        FloatingActionBar {
+            Text("已选 \(model.selectedCount)")
+                .font(.system(size: Theme.fontSmall))
+                .foregroundStyle(Theme.textSub)
+                .lineLimit(1)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
                     Button("关联衣物") { model.linkClothing() }
                         .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
                     Button("加备注") {
@@ -488,19 +492,13 @@ struct FittingView: View {
                         .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
                     Button("删除") { confirmDeleteInspirations = true }
                         .buttonStyle(AppButtonStyle(kind: .danger, small: true))
-                    Button("取消") { model.exitSelect() }
-                        .font(.system(size: Theme.fontSmall))
-                        .foregroundStyle(Theme.textSub)
-                } else {
-                    Spacer()
                 }
+                .padding(.vertical, 2)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+
+            Button("取消") { model.exitSelect() }
+                .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
         }
-        .background(Theme.card)
-        // 悬浮底栏浮在页面之上，这一条操作栏往上让开
-        .padding(.bottom, floatingBarInset)
         // 「移动到哪里」由这一栏的「移动」按钮触发：挂在操作栏上，弹层就贴着它弹
         .confirmationDialog("移动到哪里", isPresented: $showMoveOptions, titleVisibility: .visible) {
             ForEach(model.moveCandidates()) { folder in

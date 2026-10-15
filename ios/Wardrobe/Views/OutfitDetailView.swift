@@ -115,7 +115,6 @@ struct OutfitDetailView: View {
 
     @StateObject private var model: OutfitDetailModel
     /// 悬浮底栏占掉的高度：页面里自带的底部操作栏要按它往上让
-    @Environment(\.floatingBarInset) private var floatingBarInset
     @Environment(\.dismiss) private var dismiss
 
     @State private var clothingId: String?
@@ -295,22 +294,14 @@ struct OutfitDetailView: View {
     }
 
     private var toolbar: some View {
-        VStack(spacing: 0) {
-            Rectangle().fill(Theme.border).frame(height: 0.5)
-            HStack(spacing: 8) {
-                Button("删除") { confirmDelete = true }
-                    .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
-                Button("试衣间编辑") { model.openInFitting() }
-                    .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
-                Button("编辑") { showEdit = true }
-                    .buttonStyle(AppButtonStyle(kind: .primary, small: true))
-                    .frame(maxWidth: .infinity)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+        FloatingActionBar {
+            Button("删除") { confirmDelete = true }
+                .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+            Button("试衣间编辑") { model.openInFitting() }
+                .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+            Button("编辑") { showEdit = true }
+                .buttonStyle(AppButtonStyle(kind: .primary, small: true))
+                .frame(maxWidth: .infinity)
         }
-        .background(Theme.card)
-        // 悬浮底栏浮在页面之上，这条操作栏往上让开
-        .padding(.bottom, floatingBarInset)
     }
 }

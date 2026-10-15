@@ -296,6 +296,7 @@ struct WardrobeView: View {
     @State private var showTagInput = false
     @State private var releaseDialog = false
     @State private var confirmDelete = false
+    @State private var showOutfitEdit = false
 
     init(isActive: Bool = true) {
         self.isActive = isActive
@@ -334,6 +335,11 @@ struct WardrobeView: View {
                 detailId = args.count > index + 2 ? args[index + 2] : "c1"
             case "outfit":
                 outfitDetailId = args.count > index + 2 ? args[index + 2] : "o1"
+            case "clothingedit": showAddClothing = true
+            case "outfitedit": showOutfitEdit = true
+            case "select":
+                model.beginSelecting()
+                model.selected = Set(model.list.prefix(3).map { $0.id })
             default: break
             }
         }
@@ -357,6 +363,9 @@ struct WardrobeView: View {
         .navigationDestination(isPresented: $showDeclutter) { DeclutterView() }
         .navigationDestination(isPresented: $showTags) { TagManagerView() }
         .navigationDestination(isPresented: $showBatchImport) { BatchImportView() }
+        .navigationDestination(isPresented: $showOutfitEdit) {
+            OutfitEditView(outfitId: "", date: DateUtil.today())
+        }
         .sheet(isPresented: $showCategorySheet) {
             BatchCategorySheet(categories: model.categories.filter { $0 != Wardrobe.all }) { value in
                 showCategorySheet = false
@@ -527,7 +536,6 @@ struct WardrobeView: View {
             sortMenu
             densityButton
         }
-        .padding(.horizontal, 4)
         .padding(.top, 6)
         .padding(.bottom, 8)
     }
@@ -638,46 +646,38 @@ struct WardrobeView: View {
     /* ==================== 多选操作栏 ==================== */
 
     private var selectionBar: some View {
-        VStack(spacing: 0) {
-            Rectangle().fill(Theme.border).frame(height: 0.5)
-            HStack(spacing: 6) {
-                Button(model.selected.count == model.list.count && !model.list.isEmpty ? "取消全选" : "全选") {
-                    model.selectAll()
-                }
-                .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        Button("分类") { showCategorySheet = true }
-                            .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
-                        Button("季节") { showSeasonSheet = true }
-                            .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
-                        Button("标签") { showTagInput = true }
-                            .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
-                        Button("处置") { releaseDialog = true }
-                            .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
-                        Button("删除") { confirmDelete = true }
-                            .buttonStyle(AppButtonStyle(kind: .danger, small: true))
-                    }
-                    .padding(.vertical, 2)
-                }
-                .disabled(model.selected.isEmpty)
-                .opacity(model.selected.isEmpty ? 0.5 : 1)
-
-                Button("完成") { model.endSelecting() }
-                    .buttonStyle(AppButtonStyle(kind: .primary, small: true))
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-
-            Text(model.selected.isEmpty ? "点卡片勾选要处理的衣物" : "已选 \(model.selected.count) 件")
-                .font(.system(size: Theme.fontTiny))
+        FloatingActionBar {
+            Text(model.selected.isEmpty ? "选几件" : "已选 \(model.selected.count)")
+                .font(.system(size: Theme.fontSmall))
                 .foregroundStyle(Theme.textSub)
-                .padding(.top, 6)
-                .padding(.bottom, 6)
+                .lineLimit(1)
+
+            Button(model.selected.count == model.list.count && !model.list.isEmpty ? "取消全选" : "全选") {
+                model.selectAll()
+            }
+            .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    Button("分类") { showCategorySheet = true }
+                        .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+                    Button("季节") { showSeasonSheet = true }
+                        .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+                    Button("标签") { showTagInput = true }
+                        .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+                    Button("处置") { releaseDialog = true }
+                        .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+                    Button("删除") { confirmDelete = true }
+                        .buttonStyle(AppButtonStyle(kind: .danger, small: true))
+                }
+                .padding(.vertical, 2)
+            }
+            .disabled(model.selected.isEmpty)
+            .opacity(model.selected.isEmpty ? 0.5 : 1)
+
+            Button("完成") { model.endSelecting() }
+                .buttonStyle(AppButtonStyle(kind: .primary, small: true))
         }
-        .background(Theme.card)
-        .padding(.bottom, floatingBarInset)
     }
 }
 

@@ -681,7 +681,6 @@ struct DiaryView: View {
             Button("添加穿搭") { showAddOutfit = true }
                 .buttonStyle(AppButtonStyle(kind: .soft, small: true))
         }
-        .padding(.horizontal, 4)
         .padding(.top, 14)
         .padding(.bottom, 8)
     }

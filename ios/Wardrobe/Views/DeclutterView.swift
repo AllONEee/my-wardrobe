@@ -158,7 +158,6 @@ final class DeclutterModel: ObservableObject {
 
 struct DeclutterView: View {
     @StateObject private var model = DeclutterModel()
-    @Environment(\.floatingBarInset) private var floatingBarInset
     @State private var detailId: String?
     @State private var priceTarget: String?
     @State private var showPriceInput = false

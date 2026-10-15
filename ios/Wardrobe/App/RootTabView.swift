@@ -112,7 +112,7 @@ struct AppTabBar: View {
 
     var body: some View {
         barBody
-            .modifier(FloatingGlassBar())
+            .glassCapsule()
             .shadow(color: Theme.barShadow, radius: 18, x: 0, y: 8)
             .padding(.horizontal, 20)
             .padding(.bottom, Theme.floatingBarBottomGap)
@@ -165,17 +165,3 @@ struct AppTabBar: View {
     }
 }
 
-/// 底栏的「玻璃」背景：iOS 26 起用系统的 Liquid Glass（就是 P1 那种系统毛玻璃），
-/// 更早的系统退回系统的 ultraThinMaterial 材质 —— 两种都是真·半透明，会透出下面滚动的内容。
-private struct FloatingGlassBar: ViewModifier {
-    func body(content: Content) -> some View {
-        let shape = Capsule(style: .continuous)
-        if #available(iOS 26.0, *) {
-            content.glassEffect(.regular, in: shape)
-        } else {
-            content
-                .background(.ultraThinMaterial, in: shape)
-                .overlay(shape.stroke(Theme.barStroke, lineWidth: 0.5))
-        }
-    }
-}
