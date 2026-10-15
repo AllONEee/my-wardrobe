@@ -1,6 +1,140 @@
-<view class="page">
-  <view class="placeholder">
-    <view class="placeholder__title">添加/编辑衣物 · 占位</view>
-    <view class="placeholder__desc">第 4 步实现。</view>
+<view class="page page--toolbar">
+  <!-- 图片：选图后自动进抠图编辑器 -->
+  <view class="card photo">
+    <view class="photo__box" bindtap="onImageTap" hover-class="btn-hover">
+      <image wx:if="{{coverImage}}" class="photo__img" src="{{coverImage}}" mode="aspectFit" />
+      <view wx:else class="photo__empty">
+        <view class="photo__plus">+</view>
+        <view class="photo__empty-text">选择照片</view>
+      </view>
+    </view>
+    <view class="photo__tip">
+      {{coverImage ? '点图片可重新选择或重新抠图' : '选好照片后会自动进入抠图编辑器'}}
+    </view>
   </view>
+
+  <!-- 基本信息 -->
+  <view class="card section">
+    <view class="cell">
+      <view class="cell-label">名称</view>
+      <input
+        class="input"
+        data-field="name"
+        value="{{form.name}}"
+        placeholder="例如：白色衬衫"
+        placeholder-class="placeholder-text"
+        maxlength="40"
+        bindinput="onFieldInput"
+      />
+    </view>
+
+    <view class="cell cell--block">
+      <view class="cell-label">分类</view>
+      <view class="chips">
+        <view
+          class="tag {{form.category === item ? 'tag--active' : ''}}"
+          wx:for="{{categories}}"
+          wx:key="*this"
+          data-value="{{item}}"
+          bindtap="onCategoryTap"
+          hover-class="btn-hover"
+        >{{item}}</view>
+      </view>
+    </view>
+
+    <view class="cell cell--block">
+      <view class="cell-label">季节<text wx:if="{{seasonCount}}" class="cell-extra">· 已选 {{seasonCount}} 个</text></view>
+      <view class="chips">
+        <view
+          class="tag {{item.active ? 'tag--active' : ''}}"
+          wx:for="{{seasonOptions}}"
+          wx:key="value"
+          data-value="{{item.value}}"
+          bindtap="onSeasonTap"
+          hover-class="btn-hover"
+        >{{item.value}}</view>
+      </view>
+    </view>
+
+    <view class="cell cell--block">
+      <view class="cell-label">标签</view>
+      <view class="chips" wx:if="{{form.tags.length}}">
+        <view
+          class="tag tag--soft"
+          wx:for="{{form.tags}}"
+          wx:key="*this"
+          data-index="{{index}}"
+          catchtap="onRemoveTag"
+          hover-class="btn-hover"
+        >{{item}} ✕</view>
+      </view>
+      <view class="tag-add">
+        <input
+          class="tag-add__input"
+          value="{{tagInput}}"
+          placeholder="输入标签后回车添加，如：通勤"
+          placeholder-class="placeholder-text"
+          confirm-type="done"
+          maxlength="12"
+          bindinput="onTagInput"
+          bindconfirm="onTagConfirm"
+        />
+        <view class="tag-add__btn" bindtap="onAddTag" hover-class="btn-hover">添加</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 购买信息 -->
+  <view class="card section">
+    <view class="cell">
+      <view class="cell-label">购买日期</view>
+      <picker
+        class="cell-value"
+        mode="date"
+        value="{{form.purchaseDate || todayKey}}"
+        end="{{todayKey}}"
+        bindchange="onDateChange"
+      >
+        <view class="{{form.purchaseDate ? '' : 'placeholder-text'}}">{{form.purchaseDate || '未填写'}}</view>
+      </picker>
+      <view wx:if="{{form.purchaseDate}}" class="cell-clear" catchtap="onClearDate">✕</view>
+    </view>
+
+    <view class="cell">
+      <view class="cell-label">价格</view>
+      <input
+        class="input"
+        type="digit"
+        data-field="price"
+        value="{{form.price}}"
+        placeholder="未填写"
+        placeholder-class="placeholder-text"
+        bindinput="onFieldInput"
+      />
+      <text class="cell-unit">元</text>
+    </view>
+  </view>
+
+  <!-- 备注 -->
+  <view class="card section">
+    <view class="cell-label cell-label--top">备注</view>
+    <textarea
+      class="textarea"
+      data-field="note"
+      value="{{form.note}}"
+      placeholder="尺码、材质、搭配心得…"
+      placeholder-class="placeholder-text"
+      maxlength="500"
+      bindinput="onFieldInput"
+    />
+  </view>
+</view>
+
+<!-- 底部保存栏 -->
+<view class="toolbar">
+  <view
+    class="btn btn--primary btn--block {{saving ? 'btn--disabled' : ''}}"
+    bindtap="onSave"
+    hover-class="btn-hover"
+  >保存</view>
 </view>

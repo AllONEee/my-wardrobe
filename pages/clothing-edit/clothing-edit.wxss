@@ -1,1 +1,133 @@
-/* pages/clothing-edit/clothing-edit.wxss */
+/* ==================== 图片 ==================== */
+
+.photo {
+  padding: 24rpx;
+}
+
+.photo__box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 460rpx;
+  border-radius: var(--radius-sm);
+  background: #faf8f7;
+}
+
+.photo__img {
+  width: 100%;
+  height: 100%;
+}
+
+.photo__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.photo__plus {
+  color: var(--text-light);
+  font-size: 84rpx;
+  font-weight: 200;
+  line-height: 1;
+}
+
+.photo__empty-text {
+  margin-top: 12rpx;
+  color: var(--text-light);
+  font-size: 26rpx;
+}
+
+.photo__tip {
+  margin-top: 16rpx;
+  text-align: center;
+  color: var(--text-sub);
+  font-size: 24rpx;
+}
+
+/* ==================== 表单 ==================== */
+
+.section {
+  margin-top: 24rpx;
+  padding: 0 24rpx;
+}
+
+/* 整行都是内容的单元格（分类/季节/标签） */
+.cell--block {
+  display: block;
+  padding: 24rpx 8rpx;
+}
+
+.cell--block .cell-label {
+  width: auto;
+  margin-bottom: 8rpx;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 8rpx;
+}
+
+.cell-extra {
+  margin-left: 8rpx;
+  color: var(--text-light);
+  font-size: 22rpx;
+}
+
+.cell-clear {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44rpx;
+  height: 44rpx;
+  margin-left: 12rpx;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text-sub);
+  font-size: 24rpx;
+  line-height: 1;
+}
+
+.cell-unit {
+  flex: none;
+  margin-left: 8rpx;
+  color: var(--text-sub);
+  font-size: 28rpx;
+}
+
+.cell-label--top {
+  width: auto;
+  padding: 24rpx 0 8rpx;
+}
+
+/* 标签输入 */
+
+.tag-add {
+  display: flex;
+  align-items: center;
+  margin-top: 12rpx;
+}
+
+.tag-add__input {
+  flex: 1;
+  min-width: 0;
+  height: 72rpx;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  background: var(--bg);
+  font-size: 26rpx;
+}
+
+.tag-add__btn {
+  flex: none;
+  margin-left: 16rpx;
+  height: 72rpx;
+  padding: 0 32rpx;
+  border-radius: 999rpx;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 26rpx;
+  line-height: 72rpx;
+}
