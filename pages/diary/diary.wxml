@@ -1,6 +1,85 @@
-<view class="page">
-  <view class="placeholder">
-    <view class="placeholder__title">穿搭日记 · 占位</view>
-    <view class="placeholder__desc">第 7 步实现：日历打点、按天看穿搭、每天多套穿搭与封面。</view>
+<view class="page page--tabbar">
+  <!-- 月历 -->
+  <view class="card cal">
+    <view class="cal__head">
+      <view class="cal__nav" bindtap="onPrevMonth" hover-class="btn-hover">‹</view>
+      <view class="cal__title">{{monthTitle}}</view>
+      <view class="cal__nav" bindtap="onNextMonth" hover-class="btn-hover">›</view>
+    </view>
+
+    <view class="cal__week">
+      <view class="cal__week-cell" wx:for="{{weekLabels}}" wx:key="*this">{{item}}</view>
+    </view>
+
+    <view class="cal__grid">
+      <view
+        class="cal__cell {{item.inMonth ? '' : 'cal__cell--out'}} {{item.selected ? 'cal__cell--on' : ''}} {{item.isToday ? 'cal__cell--today' : ''}}"
+        wx:for="{{cells}}"
+        wx:key="date"
+        data-date="{{item.date}}"
+        bindtap="onDayTap"
+        hover-class="btn-hover"
+      >
+        <view class="cal__day">{{item.day}}</view>
+        <view class="cal__dot" wx:if="{{item.count}}"></view>
+      </view>
+    </view>
+
+    <view class="cal__foot">
+      <text class="cal__stat">共 {{totalOutfits}} 套 · 记录 {{totalDays}} 天</text>
+      <text class="link" bindtap="onToday">回到今天</text>
+    </view>
   </view>
+
+  <!-- 选中的那天 -->
+  <view class="daybar">
+    <view class="daybar__left">
+      <view class="daybar__date">{{selectedLabel}}</view>
+      <view class="daybar__sub">{{outfits.length}} 套穿搭</view>
+    </view>
+    <view class="btn btn--soft btn--sm" bindtap="onAdd" hover-class="btn-hover">添加穿搭</view>
+  </view>
+
+  <!-- 当天穿搭列表 -->
+  <view class="outfits" wx:if="{{outfits.length}}">
+    <view
+      class="card outfit"
+      wx:for="{{outfits}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onOpenOutfit"
+      hover-class="outfit--hover"
+    >
+      <view class="outfit__cover">
+        <image wx:if="{{item.cover}}" class="outfit__img" src="{{item.cover}}" mode="aspectFit" />
+        <view wx:else class="outfit__img outfit__img--empty">暂无封面</view>
+        <view class="outfit__cover-btn" data-id="{{item.id}}" catchtap="onSetCover">
+          {{item.hasCover ? '换封面' : '设封面'}}
+        </view>
+      </view>
+
+      <view class="outfit__body">
+        <view class="thumbs">
+          <view class="thumb" wx:for="{{item.thumbs}}" wx:for-item="thumb" wx:key="id">
+            <image wx:if="{{thumb.image}}" class="thumb__img" src="{{thumb.image}}" mode="aspectFit" />
+            <view wx:else class="thumb__img thumb__img--empty"></view>
+          </view>
+          <view class="thumb thumb--more" wx:if="{{item.more}}">+{{item.more}}</view>
+        </view>
+
+        <view class="outfit__note ellipsis-2" wx:if="{{item.note}}">{{item.note}}</view>
+        <view class="outfit__meta">{{item.countText}}</view>
+      </view>
+    </view>
+  </view>
+
+  <empty-state
+    wx:else
+    text="这天还没有穿搭记录"
+    desc="点下面的按钮记一套今天的穿搭，之后会出现在这里"
+    action-text="添加穿搭"
+    bind:action="onAdd"
+  />
 </view>
+
+<view class="fab" bindtap="onAdd" hover-class="btn-hover">+</view>

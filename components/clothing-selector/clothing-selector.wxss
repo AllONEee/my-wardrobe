@@ -1,0 +1,190 @@
+:host {
+  display: block;
+}
+
+.cs__mask {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  background: rgba(46, 42, 40, 0.4);
+}
+
+.cs__sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 78vh;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--card);
+  animation: cs-up 0.22s ease-out;
+}
+
+@keyframes cs-up {
+  from {
+    transform: translateY(6%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.cs__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 32rpx 12rpx;
+}
+
+.cs__title {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.cs__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text-sub);
+  font-size: 26rpx;
+}
+
+/* ---------------- 筛选 ---------------- */
+
+.cs__filter {
+  padding: 8rpx 32rpx 12rpx;
+}
+
+.cs__cats {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.cs__cats::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.cs__chips {
+  display: inline-flex;
+  align-items: center;
+}
+
+.cs__search {
+  box-sizing: border-box;
+  height: 68rpx;
+  margin-top: 12rpx;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  background: var(--bg);
+  font-size: 26rpx;
+}
+
+/* ---------------- 网格 ---------------- */
+
+.cs__body {
+  flex: 1;
+  min-height: 0;
+}
+
+.cs__grid {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 8rpx 24rpx 8rpx;
+}
+
+.cs__cell {
+  box-sizing: border-box;
+  width: 33.3333%;
+  padding: 8rpx;
+}
+
+.cs__pick {
+  position: relative;
+  border-radius: var(--radius);
+  transition: box-shadow 0.15s ease;
+}
+
+.cs__pick--on {
+  box-shadow: 0 0 0 4rpx var(--primary);
+}
+
+.cs__check {
+  position: absolute;
+  top: 10rpx;
+  right: 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  background: rgba(46, 42, 40, 0.28);
+  color: transparent;
+  font-size: 24rpx;
+  line-height: 1;
+}
+
+.cs__check--on {
+  background: var(--primary);
+  color: #fff;
+}
+
+.cs__empty {
+  padding: 120rpx 40rpx;
+  color: var(--text-light);
+  font-size: 26rpx;
+  text-align: center;
+}
+
+/* ---------------- 底部 ---------------- */
+
+.cs__foot {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 32rpx 20rpx;
+  border-top: 1rpx solid var(--border);
+}
+
+.cs__count {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-sub);
+  font-size: 26rpx;
+}
+
+.cs__count-num {
+  color: var(--primary);
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.cs__clear {
+  margin-right: 20rpx;
+  color: var(--text-sub);
+  font-size: 26rpx;
+}
+
+.cs__clear--off {
+  opacity: 0.35;
+}
+
+.cs__confirm {
+  min-width: 180rpx;
+}

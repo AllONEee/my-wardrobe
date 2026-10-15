@@ -1,6 +1,68 @@
-<view class="page">
-  <view class="placeholder">
-    <view class="placeholder__title">穿搭编辑 · 占位</view>
-    <view class="placeholder__desc">第 7 步实现。</view>
+<view class="page page--toolbar">
+  <!-- 日期 -->
+  <view class="card section">
+    <picker mode="date" value="{{date}}" bindchange="onDateChange">
+      <view class="cell">
+        <view class="cell-label">日期</view>
+        <view class="cell-value">{{date}}</view>
+        <view class="cell-arrow">›</view>
+      </view>
+    </picker>
   </view>
+
+  <!-- 关联衣物 -->
+  <view class="card section">
+    <view class="row-between section__head">
+      <view class="section__title">
+        关联衣物<text class="section__count" wx:if="{{countText}}"> · {{countText}}</text>
+      </view>
+      <view class="link" bindtap="onAddClothing" hover-class="btn-hover">+ 添加衣物</view>
+    </view>
+
+    <view class="picked" wx:if="{{items.length}}">
+      <view class="picked__cell" wx:for="{{items}}" wx:key="id">
+        <view class="picked__box">
+          <image wx:if="{{item.image}}" class="picked__img" src="{{item.image}}" mode="aspectFit" />
+          <view wx:else class="picked__img picked__img--empty">无图</view>
+          <view
+            class="picked__del"
+            data-id="{{item.id}}"
+            catchtap="onRemoveItem"
+            hover-class="btn-hover"
+          >✕</view>
+        </view>
+        <view class="picked__name ellipsis">{{item.name}}</view>
+      </view>
+    </view>
+
+    <view wx:else class="picked-empty">还没选衣物，点右上角「添加衣物」从衣橱里挑几件</view>
+  </view>
+
+  <!-- 备注 -->
+  <view class="card section">
+    <view class="section__title">备注</view>
+    <textarea
+      class="textarea note-input"
+      value="{{note}}"
+      maxlength="200"
+      placeholder="今天穿了什么？搭配的灵感从哪来？"
+      placeholder-class="placeholder-text"
+      bindinput="onNoteInput"
+    />
+  </view>
+
+  <view class="tip">保存后可以去试衣间把这几件拖到一起，生成一张搭配封面。</view>
 </view>
+
+<view class="toolbar">
+  <view class="btn btn--primary btn--block" bindtap="onSave" hover-class="btn-hover">保存穿搭</view>
+</view>
+
+<clothing-selector
+  show="{{showSelector}}"
+  selected="{{picked}}"
+  title="选择衣物"
+  confirm-text="确定"
+  bind:confirm="onSelectorConfirm"
+  bind:close="onSelectorClose"
+/>

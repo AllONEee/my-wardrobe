@@ -1,6 +1,51 @@
-<view class="page">
-  <view class="placeholder">
-    <view class="placeholder__title">穿搭详情 · 占位</view>
-    <view class="placeholder__desc">第 7 步实现。</view>
+<view class="page page--toolbar">
+  <!-- 封面 -->
+  <view class="hero" bindtap="onPreviewCover" hover-class="btn-hover">
+    <image wx:if="{{cover}}" class="hero__img" src="{{cover}}" mode="aspectFit" />
+    <view wx:else class="hero__empty">
+      <view class="hero__empty-title">还没有搭配封面</view>
+      <view class="hero__empty-desc">去试衣间把这套里的衣物拖到一起，保存时会生成一张合成封面</view>
+    </view>
   </view>
+
+  <!-- 基本信息 -->
+  <view class="card info">
+    <view class="cell">
+      <view class="cell-label">日期</view>
+      <view class="cell-value">{{dateLabel}}</view>
+    </view>
+    <view class="cell">
+      <view class="cell-label">关联衣物</view>
+      <view class="cell-value">{{countText}}</view>
+    </view>
+  </view>
+
+  <!-- 备注 -->
+  <view class="card section" wx:if="{{outfit.note}}">
+    <view class="section__title">备注</view>
+    <view class="note">{{outfit.note}}</view>
+  </view>
+
+  <!-- 关联衣物 -->
+  <view class="section-title">关联衣物</view>
+  <view class="grid" wx:if="{{items.length}}">
+    <view class="grid__cell" wx:for="{{items}}" wx:key="id">
+      <clothing-card
+        item="{{item}}"
+        show-last-worn="{{false}}"
+        bind:tapimage="onOpenClothing"
+        bind:tapcard="onOpenClothing"
+      />
+    </view>
+  </view>
+  <view wx:else class="empty-items">这套穿搭关联的衣物都已经被删除了</view>
+
+  <view class="created">创建于 {{createTimeText}}</view>
+</view>
+
+<!-- 底部操作 -->
+<view class="toolbar">
+  <view class="btn btn--ghost btn--sm" bindtap="onDelete" hover-class="btn-hover">删除</view>
+  <view class="btn btn--ghost btn--sm toolbar__gap" bindtap="onOpenFitting" hover-class="btn-hover">试衣间编辑</view>
+  <view class="btn btn--primary btn--sm flex-1" bindtap="onEdit" hover-class="btn-hover">编辑</view>
 </view>

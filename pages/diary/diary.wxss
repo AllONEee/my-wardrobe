@@ -1,1 +1,240 @@
-/* pages/diary/diary.wxss */
+/* ==================== 月历 ==================== */
+
+.cal {
+  padding: 20rpx 16rpx 12rpx;
+}
+
+.cal__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8rpx 12rpx;
+}
+
+.cal__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  color: var(--text-sub);
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.cal__title {
+  min-width: 260rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  text-align: center;
+}
+
+.cal__week {
+  display: flex;
+  padding: 8rpx 0;
+}
+
+.cal__week-cell {
+  width: 14.2857%;
+  color: var(--text-light);
+  font-size: 22rpx;
+  text-align: center;
+}
+
+.cal__grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.cal__cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 14.2857%;
+  height: 88rpx;
+}
+
+.cal__day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  font-size: 26rpx;
+  line-height: 1;
+}
+
+/* 上/下个月补位的格子淡一点 */
+.cal__cell--out .cal__day {
+  color: var(--text-light);
+}
+
+/* 今天：细描边 */
+.cal__cell--today .cal__day {
+  border: 2rpx solid var(--primary);
+  color: var(--primary);
+}
+
+/* 选中：实心底 */
+.cal__cell--on .cal__day {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.cal__dot {
+  position: absolute;
+  bottom: 8rpx;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.cal__cell--on .cal__dot {
+  background: var(--primary-dark);
+}
+
+.cal__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12rpx 16rpx 4rpx;
+  border-top: 1rpx solid var(--border);
+}
+
+.cal__stat {
+  color: var(--text-sub);
+  font-size: 24rpx;
+}
+
+/* ==================== 选中那天 ==================== */
+
+.daybar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 8rpx 16rpx;
+}
+
+.daybar__date {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.daybar__sub {
+  margin-top: 4rpx;
+  color: var(--text-sub);
+  font-size: 24rpx;
+}
+
+/* ==================== 穿搭卡片 ==================== */
+
+.outfits {
+  padding-bottom: 20rpx;
+}
+
+.outfit {
+  display: flex;
+  padding: 20rpx;
+  transition: background 0.15s ease;
+}
+
+.outfit + .outfit {
+  margin-top: 20rpx;
+}
+
+.outfit--hover {
+  background: #faf7f5;
+}
+
+.outfit__cover {
+  position: relative;
+  flex: none;
+  width: 220rpx;
+  height: 260rpx;
+  border-radius: var(--radius-sm);
+  background: #faf8f7;
+}
+
+.outfit__img {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.outfit__img--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-light);
+  font-size: 22rpx;
+}
+
+.outfit__cover-btn {
+  position: absolute;
+  right: 10rpx;
+  bottom: 10rpx;
+  height: 44rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  background: rgba(46, 42, 40, 0.55);
+  color: #fff;
+  font-size: 22rpx;
+  line-height: 44rpx;
+}
+
+.outfit__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  padding-left: 20rpx;
+}
+
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 76rpx;
+  height: 76rpx;
+  margin: 0 10rpx 10rpx 0;
+  border-radius: var(--radius-sm);
+  background: #faf8f7;
+  color: var(--text-sub);
+  font-size: 22rpx;
+}
+
+.thumb__img {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.thumb--more {
+  background: var(--bg);
+}
+
+.outfit__note {
+  margin-top: 6rpx;
+  color: var(--text);
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.outfit__meta {
+  margin-top: 8rpx;
+  color: var(--text-light);
+  font-size: 22rpx;
+}

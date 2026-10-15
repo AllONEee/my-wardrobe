@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "编辑穿搭",
-  "usingComponents": {}
+  "usingComponents": {
+    "clothing-selector": "/components/clothing-selector/clothing-selector"
+  }
 }

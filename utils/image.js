@@ -248,9 +248,14 @@ function toBase64(path) {
 
 /* ==================== 删除 ==================== */
 
+/** 是否是我们自己沙箱目录下的图片（选择器 / canvas 出来的临时路径都算「不是」） */
+function isOwned(path) {
+  return !!path && String(path).indexOf(imageDir()) === 0;
+}
+
 /** 只删除我们自己沙箱里的图片，临时路径一律忽略（避免误删系统临时文件） */
 function removeFile(path) {
-  if (!path || String(path).indexOf(imageDir()) !== 0) return false;
+  if (!isOwned(path)) return false;
   try {
     getFs().unlinkSync(path);
     return true;
@@ -308,6 +313,7 @@ module.exports = {
   saveImage,
   saveBase64,
   toBase64,
+  isOwned,
   removeFile,
   removeFiles,
   clearImages,

@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "穿搭详情",
-  "usingComponents": {}
+  "usingComponents": {
+    "clothing-card": "/components/clothing-card/clothing-card"
+  }
 }

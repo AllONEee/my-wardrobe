@@ -1,0 +1,66 @@
+<view wx:if="{{show}}" class="cs">
+  <view class="cs__mask" catchtap="onClose"></view>
+
+  <view class="cs__sheet">
+    <view class="cs__head">
+      <view class="cs__title">{{title}}</view>
+      <view class="cs__close" catchtap="onClose" hover-class="btn-hover">✕</view>
+    </view>
+
+    <view class="cs__filter">
+      <scroll-view class="cs__cats" scroll-x>
+        <view class="cs__chips">
+          <view
+            class="tag {{category === item ? 'tag--active' : ''}}"
+            wx:for="{{categories}}"
+            wx:key="*this"
+            data-value="{{item}}"
+            bindtap="onCategoryTap"
+            hover-class="btn-hover"
+          >{{item}}</view>
+        </view>
+      </scroll-view>
+      <input
+        class="cs__search"
+        value="{{keyword}}"
+        placeholder="搜索名称或备注"
+        placeholder-class="placeholder-text"
+        confirm-type="search"
+        bindinput="onKeywordInput"
+      />
+    </view>
+
+    <scroll-view class="cs__body" scroll-y enable-flex>
+      <view class="cs__grid" wx:if="{{list.length}}">
+        <view class="cs__cell" wx:for="{{list}}" wx:key="id">
+          <view class="cs__pick {{item.picked ? 'cs__pick--on' : ''}}">
+            <clothing-card
+              item="{{item}}"
+              show-last-worn="{{false}}"
+              show-wear-count="{{false}}"
+              bind:tapimage="onToggle"
+              bind:tapcard="onToggle"
+            />
+            <view class="cs__check {{item.picked ? 'cs__check--on' : ''}}">✓</view>
+          </view>
+        </view>
+      </view>
+
+      <view wx:else class="cs__empty">
+        {{total ? '没有匹配的衣物' : '衣橱里还没有衣物'}}
+      </view>
+    </scroll-view>
+
+    <view class="cs__foot">
+      <view class="cs__count">已选 <text class="cs__count-num">{{count}}</text> 件</view>
+      <view
+        class="cs__clear {{count ? '' : 'cs__clear--off'}}"
+        bindtap="onClearPicked"
+        hover-class="btn-hover"
+      >清空</view>
+      <view class="btn btn--primary btn--sm cs__confirm" bindtap="onConfirm" hover-class="btn-hover">
+        {{confirmText}}
+      </view>
+    </view>
+  </view>
+</view>

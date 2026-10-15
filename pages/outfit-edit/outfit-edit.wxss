@@ -1,1 +1,108 @@
-/* pages/outfit-edit/outfit-edit.wxss */
+.section {
+  padding: 8rpx 24rpx 24rpx;
+}
+
+.section + .section {
+  margin-top: 20rpx;
+}
+
+.section__head {
+  padding: 16rpx 0 8rpx;
+}
+
+.section__title {
+  padding: 8rpx 0 8rpx;
+  color: var(--text-sub);
+  font-size: 24rpx;
+  letter-spacing: 2rpx;
+}
+
+.section__count {
+  color: var(--text-light);
+}
+
+.cell-arrow {
+  margin-left: 8rpx;
+  color: var(--text-light);
+  font-size: 30rpx;
+}
+
+/* ==================== 已选衣物 ==================== */
+
+.picked {
+  display: flex;
+  flex-wrap: wrap;
+  padding-top: 8rpx;
+}
+
+.picked__cell {
+  box-sizing: border-box;
+  width: 25%;
+  padding: 0 16rpx 16rpx 0;
+}
+
+.picked__box {
+  position: relative;
+  box-sizing: border-box;
+  padding-bottom: 100%;
+  border-radius: var(--radius-sm);
+  background: #faf8f7;
+}
+
+.picked__img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.picked__img--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-light);
+  font-size: 22rpx;
+}
+
+.picked__del {
+  position: absolute;
+  top: -10rpx;
+  right: -10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: rgba(46, 42, 40, 0.62);
+  color: #fff;
+  font-size: 22rpx;
+  line-height: 1;
+}
+
+.picked__name {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+}
+
+.picked-empty {
+  padding: 32rpx 0 8rpx;
+  color: var(--text-light);
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+
+/* ==================== 备注 ==================== */
+
+.note-input {
+  margin-top: 8rpx;
+}
+
+.tip {
+  padding: 24rpx 8rpx;
+  color: var(--text-light);
+  font-size: 24rpx;
+  line-height: 1.6;
+}

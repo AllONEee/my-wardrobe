@@ -529,6 +529,21 @@ function saveWardrobeFilter(patch) {
 
 /* ==================== 初始化 / 导出 / 清空 ==================== */
 
+/**
+ * 这张图片是否还被引用（衣物封面 / 原图、穿搭封面、灵感图）。
+ * 删除文件前先问一句：衣物封面和穿搭自定义封面可能指向同一个路径，误删会让别处变成空白。
+ */
+function isImageInUse(path) {
+  if (!path) return false;
+  const usedByClothing = readList(KEYS.CLOTHING).some(
+    (item) => item.coverImage === path || item.originalImage === path
+  );
+  if (usedByClothing) return true;
+  const usedByOutfit = readList(KEYS.OUTFIT).some((item) => item.cover === path);
+  if (usedByOutfit) return true;
+  return readList(KEYS.INSPIRATION).some((item) => (item.images || []).indexOf(path) >= 0);
+}
+
 /** 按现有数据重建 id 索引，并从已有 id 里恢复自增序号，避免 id 冲突 */
 function rebuildIndex() {
   const index = {};
@@ -613,6 +628,7 @@ module.exports = {
   getById,
   exportData,
   clearAll,
+  isImageInUse,
 
   listClothing,
   listClothingByIds,

@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "穿搭日记",
-  "usingComponents": {}
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state"
+  }
 }
