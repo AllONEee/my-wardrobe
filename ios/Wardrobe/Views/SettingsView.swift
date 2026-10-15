@@ -222,6 +222,8 @@ struct SettingsView: View {
     var isActive: Bool = true
 
     @StateObject private var model = SettingsModel()
+    /// 悬浮底栏占掉的高度：页面里自带的底部操作栏要按它往上让
+    @Environment(\.floatingBarInset) private var floatingBarInset
     @State private var showExportOptions = false
     @State private var showShareSheet = false
     @State private var confirmClear = false
@@ -255,7 +257,7 @@ struct SettingsView: View {
                 aboutCard
             }
             .padding(Theme.pagePadding)
-            .padding(.bottom, 40)
+            .padding(.bottom, Theme.floatingBarSpace)
         }
         .background(Theme.bg)
         .navigationTitle("设置")

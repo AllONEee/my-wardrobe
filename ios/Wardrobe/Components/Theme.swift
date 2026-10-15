@@ -41,6 +41,8 @@ enum Theme {
     /// 悬浮底栏占的高度（页面底部要给它留位置）
     static let floatingBarHeight: CGFloat = 68
     static let floatingBarBottomGap: CGFloat = 6
+    /// 滚动内容底部要留的空白（比底栏本身再多一点，滚到底时最后一行不会贴着玻璃）
+    static let floatingBarSpace: CGFloat = 82
 
     /* ==================== 尺寸 ==================== */
 
@@ -93,6 +95,21 @@ extension UIColor {
             blue: CGFloat(hex & 0xFF) / 255.0,
             alpha: CGFloat(alpha)
         )
+    }
+}
+
+/* ==================== 悬浮底栏的高度（页面自带的底部操作栏要抬起来让开它） ==================== */
+
+private struct FloatingBarInsetKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    /// 底栏实际占掉的高度（高度 + 间距）。页面里自己固定在底部的操作栏加上这个内边距，
+    /// 就会落在悬浮底栏的上方，而不是被压在后面。
+    var floatingBarInset: CGFloat {
+        get { self[FloatingBarInsetKey.self] }
+        set { self[FloatingBarInsetKey.self] = newValue }
     }
 }
 

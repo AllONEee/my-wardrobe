@@ -120,6 +120,8 @@ struct OutfitEditView: View {
     let date: String
 
     @StateObject private var model: OutfitEditModel
+    /// 悬浮底栏占掉的高度：页面里自带的底部操作栏要按它往上让
+    @Environment(\.floatingBarInset) private var floatingBarInset
     @Environment(\.dismiss) private var dismiss
     @State private var showDatePicker = false
 
@@ -307,5 +309,7 @@ struct OutfitEditView: View {
             .padding(.vertical, 8)
         }
         .background(Theme.card)
+        // 悬浮底栏浮在页面之上，这条保存栏往上让开
+        .padding(.bottom, floatingBarInset)
     }
 }

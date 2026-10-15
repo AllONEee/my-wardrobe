@@ -23,6 +23,8 @@ struct ImageEditorView: View {
 
     @Environment(\.dismiss) private var dismiss
     @StateObject private var proxy = EditorProxy()
+    /// 悬浮底栏占掉的高度：页面里自带的底部操作栏要按它往上让
+    @Environment(\.floatingBarInset) private var floatingBarInset
 
     @State private var mode: EditorMode = .erase
     @State private var brush: Double = 18
@@ -324,6 +326,8 @@ struct ImageEditorView: View {
             Rectangle().fill(Theme.border).frame(height: 0.5)
         }
         .background(Theme.card)
+        // 悬浮底栏浮在页面之上，这条确认栏往上让开
+        .padding(.bottom, floatingBarInset)
     }
 
     /* ==================== 动作 ==================== */

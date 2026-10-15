@@ -184,6 +184,8 @@ struct ClothingEditView: View {
     let clothingId: String
 
     @StateObject private var model: ClothingEditModel
+    /// 悬浮底栏占掉的高度：页面里自带的底部操作栏要按它往上让
+    @Environment(\.floatingBarInset) private var floatingBarInset
     @Environment(\.dismiss) private var dismiss
 
     @State private var showPicker = false
@@ -479,5 +481,7 @@ struct ClothingEditView: View {
             .padding(.bottom, 8)
         }
         .background(Theme.card)
+        // 悬浮底栏浮在页面之上，这条保存栏往上让开
+        .padding(.bottom, floatingBarInset)
     }
 }

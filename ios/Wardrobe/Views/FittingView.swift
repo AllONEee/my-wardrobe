@@ -11,6 +11,8 @@ struct FittingView: View {
     var isActive: Bool = true
 
     @StateObject private var model = FittingModel()
+    /// 悬浮底栏占掉的高度：页面里自带的底部操作栏要按它往上让
+    @Environment(\.floatingBarInset) private var floatingBarInset
 
     @State private var showImportPicker = false
     @State private var showCreateFolder = false
@@ -497,6 +499,8 @@ struct FittingView: View {
             .padding(.vertical, 8)
         }
         .background(Theme.card)
+        // 悬浮底栏浮在页面之上，这一条操作栏往上让开
+        .padding(.bottom, floatingBarInset)
         // 「移动到哪里」由这一栏的「移动」按钮触发：挂在操作栏上，弹层就贴着它弹
         .confirmationDialog("移动到哪里", isPresented: $showMoveOptions, titleVisibility: .visible) {
             ForEach(model.moveCandidates()) { folder in

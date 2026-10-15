@@ -47,7 +47,8 @@ struct RootTabView: View {
     @State private var visited: Set<AppTab> = [AppState.shared.selectedTab]
 
     var body: some View {
-        VStack(spacing: 0) {
+        // 页面铺满整屏，底栏浮在上面：滚动内容会从玻璃下面穿过去（不是被一条色块挡住）
+        ZStack(alignment: .bottom) {
             ZStack {
                 // 首次切到时才创建，之后常驻（和小程序 tabBar 页的生命周期一致）
                 ForEach(AppTab.allCases) { value in
@@ -64,6 +65,11 @@ struct RootTabView: View {
             AppTabBar(selection: $appState.selectedTab)
         }
         .background(Theme.bg)
+        // 页面里自带的底部操作栏按这个高度往上让，避免被悬浮底栏压住
+        .environment(
+            \.floatingBarInset,
+            Theme.floatingBarHeight + Theme.floatingBarBottomGap
+        )
         .appToast()
         .onChange(of: appState.selectedTab) { _, value in
             visited.insert(value)
@@ -95,6 +101,14 @@ struct AppTabBar: View {
     private let titleSize: CGFloat = 12
 
     var body: some View {
+        barBody
+            .modifier(FloatingGlassBar())
+            .shadow(color: Theme.barShadow, radius: 18, x: 0, y: 8)
+            .padding(.horizontal, 20)
+            .padding(.bottom, Theme.floatingBarBottomGap)
+    }
+
+    private var barBody: some View {
         HStack(spacing: 0) {
             ForEach(AppTab.allCases) { tab in
                 Button {
@@ -106,15 +120,6 @@ struct AppTabBar: View {
             }
         }
         .frame(height: Theme.floatingBarHeight)
-        // 磨砂玻璃：用系统材质，深色 / 浅色会自动跟着变
-        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
-        .overlay(
-            Capsule(style: .continuous)
-                .stroke(Theme.barStroke, lineWidth: 0.5)
-        )
-        .shadow(color: Theme.barShadow, radius: 18, x: 0, y: 8)
-        .padding(.horizontal, 20)
-        .padding(.bottom, Theme.floatingBarBottomGap)
     }
 
     /// 一个 tab：图标 + 文字。拆成单独的方法，避免编译器在 ForEach 里推断超时
@@ -146,6 +151,21 @@ struct AppTabBar: View {
                 .renderingMode(.template)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
+        }
+    }
+}
+
+/// 底栏的「玻璃」背景：iOS 26 起用系统的 Liquid Glass（就是 P1 那种系统毛玻璃），
+/// 更早的系统退回系统的 ultraThinMaterial 材质 —— 两种都是真·半透明，会透出下面滚动的内容。
+private struct FloatingGlassBar: ViewModifier {
+    func body(content: Content) -> some View {
+        let shape = Capsule(style: .continuous)
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular, in: shape)
+        } else {
+            content
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(shape.stroke(Theme.barStroke, lineWidth: 0.5))
         }
     }
 }

@@ -165,6 +165,8 @@ struct WardrobeView: View {
     var isActive: Bool = true
 
     @StateObject private var model = WardrobeModel()
+    /// 悬浮底栏占掉的高度：页面里自带的底部操作栏要按它往上让
+    @Environment(\.floatingBarInset) private var floatingBarInset
     @State private var detailId: String?
     @State private var showAddClothing = false
 
@@ -333,6 +335,7 @@ struct WardrobeView: View {
                 .shadow(color: Theme.primary.opacity(0.38), radius: 16, x: 0, y: 6)
         }
         .padding(.trailing, 20)
-        .padding(.bottom, 20)
+        // 悬浮底栏浮在页面之上，按钮要抬到它上方
+        .padding(.bottom, floatingBarInset + 16)
     }
 }

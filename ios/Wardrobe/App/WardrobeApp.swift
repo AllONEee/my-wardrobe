@@ -47,6 +47,7 @@ struct WardrobeApp: App {
         }
     }
 
+
     /// 外观：设置页选「跟随系统」时交给系统（深色 / 浅色都跟着走），选了浅色或深色就锁定
     private var preferredScheme: ColorScheme? {
         switch appState.settings.appearance {
