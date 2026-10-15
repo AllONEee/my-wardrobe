@@ -1,4 +1,4 @@
-# 欣欣衣橱（Clog）iOS 版
+# 点点衣橱（Clog）iOS 版
 
 用原生 iOS（SwiftUI + UIKit）把小程序「我的衣橱」重写了一遍：功能、页面结构、数据层、事件机制
 都和原来一一对应，只有两处按要求换成了 iOS 系统能力——
@@ -8,7 +8,7 @@
 | 抠图 | 云端 AI 抠图接口（自己搭服务 + 配置合法域名） | **Vision 框架** `VNGenerateForegroundInstanceMaskRequest`，本机完成，不需要接口和 Key |
 | 天气 | 和风天气接口（需要申请 Key + 配置域名） | 默认 **WeatherKit**（系统自带），另外补了一条**和风天气备用通道**，两条二选一 |
 
-App 名称：中文 **欣欣衣橱**，英文 **Clog**；bundle id 是 `com.wardrobe.clog`。
+App 名称：中文 **点点衣橱**，英文 **Clog**；bundle id 是 `com.wardrobe.clog`。
 
 ## 打开与运行
 
@@ -179,7 +179,7 @@ xcrun devicectl device process launch --device <设备标识> com.wardrobe.clog
 3. **天气两条通道**：系统 WeatherKit（默认，需付费账号 + 后台开能力）与和风天气
    （免费账号也能用，填 Key 即通，免费版实况 + 未来 3 天）。填完 Key 自动测一次连通性；
    配好来源后日记页会静默补上当天天气（只在已有城市坐标时）。
-4. **命名**：中文名「欣欣衣橱」、英文名「Clog」、bundle id `com.wardrobe.clog`（英文名通过
+4. **命名**：中文名「点点衣橱」、英文名「Clog」、bundle id `com.wardrobe.clog`（英文名通过
    `Wardrobe/en.lproj/InfoPlist.strings` 覆盖，系统语言是英文时显示 Clog）。
 5. **主菜单底栏**：图标 26 → 30pt、文字 10 → 12pt（选中加粗），小屏上更清楚。
 6. **抠完的图按衣服范围裁紧**：抠图结果保留的是原图尺寸，衣服常常只占中间一块，
@@ -190,6 +190,11 @@ xcrun devicectl device process launch --device <设备标识> com.wardrobe.clog
 7. **操作表挂在被点的控件上**：所有 `confirmationDialog`（选照片 / 重新抠图 / 设置封面 / 移动到哪里 /
    文件夹操作 / 导出 JSON）都从「页面根节点」挪到了触发它的那个控件上。系统弹层是按挂载点定位的 ——
    挂在整页时 iOS 26 会把它摆到页面最下边（还压住底栏），挂到控件上就贴着哪儿点哪儿弹。
+8. **开屏页**（`Views/SplashView.swift`）：启动时中间显示 App 图标、下面一行字「做给点点的衣橱」，
+   停留 1.5 秒后淡出到衣橱页（这 1.5 秒里数据已经在后台读好，等于把启动等待藏起来）。
+   图标取的是应用自己的 `AppIcon`（`UIImage(named: "AppIcon")`，取不到再走 Info.plist 的图标清单），
+   所以以后换图标，开屏页会跟着变，不用改代码；系统的启动屏（`UILaunchScreen`）用的是同一个背景色
+   `LaunchBackground`，从系统启动屏到开屏页不会闪一下。开了「减弱动态效果」时不做缩放动画。
 
 ## 数据兼容
 
@@ -234,6 +239,16 @@ JSON 字段、id 规则（`c/o/i/f` + 36 进制自增）、`createTime` 毫秒�
   整张都有内容 / 全透明 / 上下贴边 / 内容不足 1% 这四种「不该裁」的情况。
 - **显示效果**：用一张「衣服只占画面中间一小块」的 1600×1600 图分别看了三处（截图逐张确认）——
   衣柜卡片里衣服撑满卡片、编辑画布里衣服撑满画布（涂抹精度跟着提高）、试衣间的虚线定位框紧贴衣服轮廓。
+
+第三轮的两处改动（改名 + 开屏页）也验了：
+
+- **改名**：`Config/Info.plist` 的 `CFBundleDisplayName` 由「欣欣衣橱」改成「点点衣橱」
+  （英文名仍是 Clog，由 `Wardrobe/en.lproj/InfoPlist.strings` 覆盖，系统语言为英文时才显示 Clog）。
+  装到模拟器后，桌面图标下面的名字确认是「点点衣橱」。
+- **开屏页**：连着截了 22 张图逐张比对，确认三段衔接 —— 系统启动屏（纯背景色 `LaunchBackground`）
+  → 开屏页（App 图标 + 「做给点点的衣橱」，停留 1.5 秒）→ 淡出进入衣橱页，中间没有闪白或跳一下。
+  图标确认是从 `UIImage(named: "AppIcon")` 取到的（就是桌面上那张手绘 T 恤），
+  以后换图标开屏页会自动跟着变。
 
 **这两个系统能力在模拟器上跑不了，需要在真机验证**（代码里都已经做了降级处理，不会卡住流程）：
 

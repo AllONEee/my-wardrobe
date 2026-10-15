@@ -16,7 +16,6 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-BUNDLE_ID="com.wardrobe.clog"
 BUILD_DIR="$PWD/build-ios"
 DEVICE_NAME="${1:-}"
 
@@ -86,6 +85,9 @@ if [[ ! -d "$APP_PATH" ]]; then
   exit 1
 fi
 echo "    构建成功"
+
+# bundle id 直接从打好的包里读，改过名字也不用动脚本
+BUNDLE_ID="$(plutil -extract CFBundleIdentifier raw "$APP_PATH/Info.plist" 2>/dev/null || echo "")"
 
 echo "==> 3/3 覆盖安装（不会清数据）"
 if ! INSTALL_OUT="$(xcrun devicectl device install app --device "$UDID" "$APP_PATH" 2>&1)"; then

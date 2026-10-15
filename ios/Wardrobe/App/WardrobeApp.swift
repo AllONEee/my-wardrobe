@@ -11,6 +11,8 @@ import SwiftUI
 @main
 struct WardrobeApp: App {
     @StateObject private var appState = AppState.shared
+    /// 开屏页：启动时盖在最上面，短暂停留后淡出（这期间数据已经在后台读好了）
+    @State private var showSplash = true
 
     init() {
         // 对应 app.js 的 onLaunch：先初始化数据层
@@ -25,10 +27,22 @@ struct WardrobeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
-                .environmentObject(appState)
-                .tint(Theme.primary)
-                .preferredColorScheme(.light)
+            ZStack {
+                RootTabView()
+                    .environmentObject(appState)
+                    .tint(Theme.primary)
+                    .preferredColorScheme(.light)
+
+                if showSplash {
+                    SplashView()
+                        .transition(.opacity)
+                        .zIndex(1)
+                }
+            }
+            .task {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                withAnimation(.easeOut(duration: 0.45)) { showSplash = false }
+            }
         }
     }
 }
