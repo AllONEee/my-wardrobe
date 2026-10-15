@@ -1,24 +1,14 @@
 //
 //  SplashView.swift —— 开屏页
 //
-//  中间放 App 图标，下面一行字。图标直接取应用自己的图标（Assets 里的 AppIcon），
-//  所以以后换图标时开屏页会跟着变，这里不用改。
+//  中间放 logo、下面一行字。
+//
+//  logo 是从 App 图标里抠出来的线稿（Assets 里的 SplashLogo：只有线条、背景透明），
+//  用模板渲染 + Theme.text 上色，所以浅色下是深色线条、深色下自动变成浅色线条；
+//  不带白色方块底，也不会像直接贴 App 图标那样出现一个「框」。
 //
 
 import SwiftUI
-import UIKit
-
-enum AppIconImage {
-    /// 应用自己的图标：先按资源名找，找不到再走 Info.plist 里的图标清单
-    static let shared: UIImage? = {
-        if let icon = UIImage(named: "AppIcon") { return icon }
-        guard let icons = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
-              let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
-              let files = primary["CFBundleIconFiles"] as? [String],
-              let name = files.last else { return nil }
-        return UIImage(named: name)
-    }()
-}
 
 struct SplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -29,15 +19,12 @@ struct SplashView: View {
             Theme.bg.ignoresSafeArea()
 
             VStack(spacing: 20) {
-                // 与系统桌面图标一致：1024 的图按 112pt 显示，圆角比例沿用 iOS 的连续圆角
-                if let icon = AppIconImage.shared {
-                    Image(uiImage: icon)
-                        .resizable()
-                        .aspectRatio(1, contentMode: .fit)
-                        .frame(width: 112, height: 112)
-                        .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
-                        .shadow(color: Color.black.opacity(0.14), radius: 18, x: 0, y: 8)
-                }
+                Image("SplashLogo")
+                    .renderingMode(.template)   // 只画线条，跟着深浅色反色
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 190)
+                    .foregroundStyle(Theme.text)
 
                 Text("做给点点的衣橱")
                     .font(.system(size: Theme.fontSubtitle))
