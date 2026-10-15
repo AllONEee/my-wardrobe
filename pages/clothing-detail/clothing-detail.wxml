@@ -1,6 +1,59 @@
-<view class="page">
-  <view class="placeholder">
-    <view class="placeholder__title">衣物详情 · 占位</view>
-    <view class="placeholder__desc">第 6 步实现。</view>
+<view class="page page--toolbar">
+  <!-- 大图 -->
+  <view class="hero" bindtap="onPreviewImage" hover-class="btn-hover">
+    <image wx:if="{{item.coverImage}}" class="hero__img" src="{{item.coverImage}}" mode="aspectFit" />
+    <view wx:else class="hero__empty">暂无图片</view>
   </view>
+
+  <!-- 名称与标签 -->
+  <view class="card info">
+    <view class="info__name">{{item.name}}</view>
+    <view class="tags">
+      <view class="tag tag--soft">{{item.category}}</view>
+      <view class="tag" wx:for="{{item.seasons}}" wx:key="*this">{{item}}</view>
+    </view>
+    <view class="tags" wx:if="{{item.tags.length}}">
+      <view class="tag" wx:for="{{item.tags}}" wx:key="*this"># {{item}}</view>
+    </view>
+  </view>
+
+  <!-- 穿着统计 -->
+  <view class="card stats">
+    <view class="stats__col">
+      <view class="stats__value">{{item.wearCount}}</view>
+      <view class="stats__label">穿着次数</view>
+    </view>
+    <view class="stats__col">
+      <view class="stats__value stats__value--sm">{{lastWornText || '—'}}</view>
+      <view class="stats__label">最近穿着</view>
+    </view>
+    <view class="stats__btn" bindtap="onWearOnce" hover-class="btn-hover">今天穿了 +1</view>
+  </view>
+
+  <!-- 购买信息 -->
+  <view class="card section">
+    <view class="cell">
+      <view class="cell-label">购买日期</view>
+      <view class="cell-value {{item.purchaseDate ? '' : 'placeholder-text'}}">{{item.purchaseDate || '未填写'}}</view>
+    </view>
+    <view class="cell">
+      <view class="cell-label">价格</view>
+      <view class="cell-value {{item.price ? '' : 'placeholder-text'}}">{{priceText}}</view>
+    </view>
+  </view>
+
+  <!-- 备注 -->
+  <view class="card section" wx:if="{{item.note}}">
+    <view class="cell-label cell-label--top">备注</view>
+    <view class="note">{{item.note}}</view>
+  </view>
+
+  <view class="created">添加于 {{createTimeText}}</view>
+</view>
+
+<!-- 底部操作 -->
+<view class="toolbar">
+  <view class="btn btn--ghost btn--sm" bindtap="onDelete" hover-class="btn-hover">删除</view>
+  <view class="btn btn--ghost btn--sm toolbar__gap" bindtap="onRecut" hover-class="btn-hover">重新抠图</view>
+  <view class="btn btn--primary btn--sm flex-1" bindtap="onEdit" hover-class="btn-hover">编辑</view>
 </view>

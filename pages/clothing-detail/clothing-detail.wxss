@@ -1,1 +1,115 @@
-/* pages/clothing-detail/clothing-detail.wxss */
+/* ==================== 大图 ==================== */
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 560rpx;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.hero__img {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius);
+}
+
+.hero__empty {
+  color: var(--text-light);
+  font-size: 26rpx;
+}
+
+/* ==================== 名称与标签 ==================== */
+
+.info {
+  margin-top: 24rpx;
+  padding: 24rpx;
+}
+
+.info__name {
+  margin-bottom: 16rpx;
+  font-size: 34rpx;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* ==================== 穿着统计 ==================== */
+
+.stats {
+  display: flex;
+  align-items: center;
+  margin-top: 24rpx;
+  padding: 24rpx;
+}
+
+.stats__col {
+  min-width: 140rpx;
+  margin-right: 24rpx;
+}
+
+.stats__value {
+  font-size: 44rpx;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.stats__value--sm {
+  font-size: 30rpx;
+  font-weight: 500;
+  padding-top: 10rpx;
+}
+
+.stats__label {
+  margin-top: 4rpx;
+  color: var(--text-sub);
+  font-size: 22rpx;
+}
+
+.stats__btn {
+  flex: none;
+  margin-left: auto;
+  height: 72rpx;
+  padding: 0 32rpx;
+  border-radius: 999rpx;
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-size: 26rpx;
+  line-height: 72rpx;
+}
+
+/* ==================== 其它 ==================== */
+
+.section {
+  margin-top: 24rpx;
+  padding: 0 24rpx;
+}
+
+.cell-label--top {
+  width: auto;
+  padding: 24rpx 0 8rpx;
+}
+
+.note {
+  padding: 0 0 24rpx;
+  font-size: 28rpx;
+  line-height: 1.7;
+  word-break: break-all;
+}
+
+.created {
+  padding: 32rpx 0 8rpx;
+  color: var(--text-light);
+  font-size: 22rpx;
+  text-align: center;
+}
+
+.toolbar__gap {
+  margin: 0 16rpx;
+}
