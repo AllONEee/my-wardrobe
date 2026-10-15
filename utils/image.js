@@ -26,6 +26,11 @@ function imageDir() {
   return userDataPath() + '/images';
 }
 
+/** 导出目录（设置页「导出 JSON」的产物都放这里） */
+function exportDir() {
+  return userDataPath() + '/exports';
+}
+
 /** 确保目录存在（mkdirSync 的 recursive 参数需要基础库 2.3.0+） */
 function ensureDir(dir) {
   const target = dir || imageDir();
@@ -246,6 +251,18 @@ function toBase64(path) {
   });
 }
 
+/**
+ * 写一个文本文件（设置页导出 JSON 用）
+ * @returns {string} 写入后的绝对路径
+ */
+function writeTextFile(dir, name, content) {
+  const target = dir || exportDir();
+  if (!ensureDir(target)) throw new Error('无法创建目录');
+  const dest = target + '/' + name;
+  getFs().writeFileSync(dest, content, 'utf8');
+  return dest;
+}
+
 /* ==================== 删除 ==================== */
 
 /** 是否是我们自己沙箱目录下的图片（选择器 / canvas 出来的临时路径都算「不是」） */
@@ -302,6 +319,7 @@ function getImagesStat() {
 
 module.exports = {
   imageDir,
+  exportDir,
   userDataPath,
   ensureDir,
   extOf,
@@ -313,6 +331,7 @@ module.exports = {
   saveImage,
   saveBase64,
   toBase64,
+  writeTextFile,
   isOwned,
   removeFile,
   removeFiles,

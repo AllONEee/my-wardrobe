@@ -1,6 +1,72 @@
-<view class="page">
-  <view class="placeholder">
-    <view class="placeholder__title">设置 · 占位</view>
-    <view class="placeholder__desc">第 9 步实现：显示设置、导出 JSON、清空数据、关于。</view>
+<view class="page page--tabbar">
+  <!-- 显示设置 -->
+  <view class="section-title">显示</view>
+  <view class="card card--list">
+    <view class="cell">
+      <view class="cell-label cell-label--wide">显示最近穿着日期</view>
+      <view class="cell-value">
+        <switch
+          checked="{{settings.showLastWorn}}"
+          color="#e0745e"
+          bindchange="onToggleLastWorn"
+        />
+      </view>
+    </view>
   </view>
+
+  <!-- 数据 -->
+  <view class="section-title">数据</view>
+  <view class="card card--list">
+    <view class="cell">
+      <view class="cell-label cell-label--wide">衣物 / 穿搭 / 灵感</view>
+      <view class="cell-value">{{stat.clothing}} / {{stat.outfits}} / {{stat.inspirations}}</view>
+    </view>
+    <view class="cell">
+      <view class="cell-label cell-label--wide">本地存储占用</view>
+      <view class="cell-value">{{storageText}}</view>
+    </view>
+    <view class="cell">
+      <view class="cell-label cell-label--wide">图片文件</view>
+      <view class="cell-value">{{imageText}}</view>
+    </view>
+    <view class="cell cell--tap" bindtap="onExport" hover-class="cell--hover">
+      <view class="cell-label cell-label--wide">导出 JSON</view>
+      <view class="cell-value cell-value--link">导出 ›</view>
+    </view>
+    <view class="cell cell--tap" bindtap="onClearData" hover-class="cell--hover">
+      <view class="cell-label cell-label--wide">清空数据</view>
+      <view class="cell-value cell-value--danger">清空 ›</view>
+    </view>
+  </view>
+  <view class="hint">数据全部存在这台手机上，不会上传；导出的 JSON 里图片只有路径，图片文件本身在本地沙箱里。</view>
+
+  <!-- 云端抠图 -->
+  <view class="section-title">抠图</view>
+  <view class="card card--list">
+    <view class="cell cell--tap" bindtap="onCutoutConfig" hover-class="cell--hover">
+      <view class="cell-label cell-label--wide">云端抠图接口</view>
+      <view class="cell-value {{cutoutOn ? 'cell-value--link' : 'placeholder-text'}}">
+        {{cutoutOn ? '已配置 ›' : '未配置 ›'}}
+      </view>
+    </view>
+    <view class="cell" wx:if="{{cutoutOn}}">
+      <view class="cell-label cell-label--wide">接口地址</view>
+      <view class="cell-value ellipsis">{{cutoutUrl}}</view>
+    </view>
+  </view>
+  <view class="hint">没配置接口时，图片编辑页的「云端抠图」会提示未配置，橡皮擦和画笔仍然可以手动处理。</view>
+
+  <!-- 关于 -->
+  <view class="section-title">关于</view>
+  <view class="card card--list">
+    <view class="cell">
+      <view class="cell-label cell-label--wide">版本</view>
+      <view class="cell-value">{{version}}</view>
+    </view>
+    <view class="cell cell--tap" bindtap="onOpenDocs" hover-class="cell--hover">
+      <view class="cell-label cell-label--wide">参考项目</view>
+      <view class="cell-value cell-value--link">LookLog ›</view>
+    </view>
+  </view>
+  <view class="about">用微信小程序原生开发（WXML / WXSS / JS），数据只用 wx.setStorageSync 和本地文件系统保存。</view>
 </view>

@@ -888,6 +888,11 @@ Page({
     if (!this.data.isOutfitTab) this.refreshInspirations();
   },
 
+  /** 多选栏上的「取消」 */
+  onExitSelect() {
+    this.exitSelect();
+  },
+
   /** 多选时的目标灵感（去掉已经被删掉的） */
   selectTargets() {
     return this._selectIds.map((id) => db.getInspiration(id)).filter(Boolean);
@@ -961,10 +966,12 @@ Page({
       wx.showToast({ title: '还没有别的文件夹', icon: 'none' });
       return;
     }
+    // showActionSheet 最多 6 项，超出的先不展示（够用，也没必要再造一个弹层）
+    const visible = folders.slice(0, 6);
     wx.showActionSheet({
-      itemList: folders.map((folder) => folder.name),
+      itemList: visible.map((folder) => folder.name),
       success: (res) => {
-        const folder = folders[res.tapIndex];
+        const folder = visible[res.tapIndex];
         if (!folder) return;
         targets.forEach((item) => db.updateInspiration(item.id, { folderId: folder.id }));
         wx.showToast({ title: '已移动到「' + folder.name + '」', icon: 'none' });

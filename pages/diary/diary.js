@@ -133,7 +133,8 @@ Page({
   },
 
   switchMonth(delta) {
-    const monthKey = dateUtil.monthKeyOf(dateUtil.addMonths(this.data.monthKey, delta));
+    // addMonths 收的是 'YYYY-MM-DD'（内部按本地时区解析），所以补上 1 号再算
+    const monthKey = dateUtil.monthKeyOf(dateUtil.addMonths(this.data.monthKey + '-01', delta));
     const todayKey = dateUtil.monthKeyOf(this._today);
     this.setData({
       monthKey,

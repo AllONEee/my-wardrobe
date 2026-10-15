@@ -1,1 +1,40 @@
-/* pages/settings/settings.wxss */
+.card--list {
+  padding: 0 24rpx;
+}
+
+.cell-label--wide {
+  width: auto;
+  flex: 1;
+  min-width: 0;
+  padding-right: 20rpx;
+}
+
+.cell--tap {
+  transition: background 0.15s ease;
+}
+
+.cell--hover {
+  background: #faf7f5;
+}
+
+.cell-value--link {
+  color: var(--primary);
+}
+
+.cell-value--danger {
+  color: var(--danger);
+}
+
+.hint {
+  padding: 16rpx 12rpx 8rpx;
+  color: var(--text-light);
+  font-size: 22rpx;
+  line-height: 1.7;
+}
+
+.about {
+  padding: 20rpx 12rpx 40rpx;
+  color: var(--text-light);
+  font-size: 22rpx;
+  line-height: 1.7;
+}
