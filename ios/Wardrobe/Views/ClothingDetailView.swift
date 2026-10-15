@@ -87,6 +87,13 @@ final class ClothingDetailModel: ObservableObject {
         return DateUtil.friendlyDate(item.lastWornDate)
     }
 
+    /// 单次成本 = 价格 ÷ 次数；没填价格显示「—」，还没穿过给一句人话
+    var costText: String {
+        guard let item, item.price > 0 else { return "—" }
+        guard let cost = item.costPerWear else { return "还没穿过" }
+        return Money.costPerWear(cost)
+    }
+
     var createTimeText: String {
         guard let item else { return "" }
         return DateUtil.formatDate(Date(timeIntervalSince1970: item.createTime / 1000))
@@ -97,10 +104,51 @@ final class ClothingDetailModel: ObservableObject {
     }
 
     func wearOnce() {
-        guard let next = Database.shared.increaseWearCount(clothingId, step: 1) else { return }
+        guard let before = item,
+              let next = Database.shared.increaseWearCount(clothingId, step: 1) else { return }
         load()
         Haptic.light()
-        ToastCenter.shared.show("已记录，共 \(next.wearCount) 次")
+        ToastCenter.shared.show("已记录，共 \(next.wearCount) 次", actionTitle: "撤销") {
+            Database.shared.restoreWear(self.clothingId, wearCount: before.wearCount, lastWornDate: before.lastWornDate)
+        }
+    }
+
+    /// 点错了 / 记重了：减一次
+    func wearMinus() {
+        guard let next = Database.shared.increaseWearCount(clothingId, step: -1) else { return }
+        load()
+        Haptic.light()
+        ToastCenter.shared.show("已减 1 · 共 \(next.wearCount) 次")
+    }
+
+    /// 直接改成某个次数（搬旧记录、补录历史用）
+    func setWearCount(_ value: Int) {
+        guard let next = Database.shared.setWearCount(clothingId, count: value) else { return }
+        load()
+        Haptic.success()
+        ToastCenter.shared.show("穿着次数已改成 \(next.wearCount)")
+    }
+
+    /* ==================== 断舍离 ==================== */
+
+    func release(_ method: ReleaseMethod) {
+        Database.shared.releaseClothing(clothingId, method: method)
+        load()
+        Haptic.success()
+        ToastCenter.shared.show("已\(method.title)，可在「断舍离」里找回")
+    }
+
+    func restore() {
+        Database.shared.restoreClothing(clothingId)
+        load()
+        Haptic.light()
+        ToastCenter.shared.show("已放回衣橱")
+    }
+
+    /// 分享用的卡片图
+    func shareImage() -> UIImage? {
+        guard let item else { return nil }
+        return SharePoster.clothing(item)
     }
 
     /// 重新抠图：用原图（保留原图就是为了这个），没有原图时退回当前展示图
@@ -147,6 +195,9 @@ struct ClothingDetailView: View {
     @State private var showEdit = false
     @State private var showEditor = false
     @State private var confirmDelete = false
+    @State private var releaseDialog = false
+    @State private var showCountInput = false
+    @State private var showShare = false
     @State private var historyOutfitId: String?
 
     init(clothingId: String) {
@@ -159,6 +210,7 @@ struct ClothingDetailView: View {
             VStack(spacing: 0) {
                 hero
                 if let item = model.item {
+                    if item.isReleased { releasedBanner(item) }
                     infoCard(item)
                     statsCard(item)
                     purchaseCard(item)
@@ -177,6 +229,7 @@ struct ClothingDetailView: View {
         .background(Theme.bg)
         .navigationTitle(model.item?.name ?? "衣物详情")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { toolbarMenu }
         .safeAreaInset(edge: .bottom) { toolbar }
         .navigationDestination(isPresented: $showEdit) {
             ClothingEditView(clothingId: clothingId)
@@ -202,6 +255,30 @@ struct ClothingDetailView: View {
         } message: {
             Text("删除后不可恢复，并会自动从所有穿搭中移除这件衣物。")
         }
+        .confirmationDialog("让它离开衣橱", isPresented: $releaseDialog, titleVisibility: .visible) {
+            ForEach(ReleaseMethod.allCases) { method in
+                Button(method.title) { model.release(method) }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("衣物不会删除，历史穿搭里仍然看得到；之后可以在「断舍离」页恢复。")
+        }
+        .textInputDialog(
+            isPresented: $showCountInput,
+            title: "穿着次数",
+            message: "把次数改成实际的数字（补录以前的记录时用得上）",
+            placeholder: "例如：8",
+            initialText: "\(model.item?.wearCount ?? 0)",
+            confirmText: "保存"
+        ) { value in
+            let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            model.setWearCount(Int(cleaned) ?? 0)
+        }
+        .sheet(isPresented: $showShare) {
+            if let image = model.shareImage() {
+                ActivityView(items: [image])
+            }
+        }
         .onChange(of: model.missing) { _, missing in
             // 可能是在别处被删掉了
             if missing {
@@ -209,6 +286,71 @@ struct ClothingDetailView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { dismiss() }
             }
         }
+    }
+
+    /* ==================== 顶部菜单：分享 / 断舍离 ==================== */
+
+    private var toolbarMenu: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button {
+                    showShare = true
+                } label: {
+                    Label("分享这张卡片", systemImage: "square.and.arrow.up")
+                }
+                Button {
+                    if let image = model.shareImage() { PhotoSaver.save(image) }
+                } label: {
+                    Label("保存到相册", systemImage: "square.and.arrow.down")
+                }
+                Divider()
+                if model.item?.isReleased == true {
+                    Button {
+                        model.restore()
+                    } label: {
+                        Label("放回衣橱", systemImage: "arrow.uturn.backward")
+                    }
+                } else {
+                    Button {
+                        releaseDialog = true
+                    } label: {
+                        Label("断舍离", systemImage: "leaf")
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 17))
+                    .foregroundStyle(Theme.text)
+            }
+        }
+    }
+
+    /* ==================== 已处置横幅 ==================== */
+
+    private func releasedBanner(_ item: ClothingItem) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: item.releaseMethod?.symbol ?? "archivebox")
+                .font(.system(size: 14))
+                .foregroundStyle(Theme.textSub)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("已\(item.releaseMethod?.title ?? "处置")")
+                    .font(.system(size: Theme.fontSmall, weight: .medium))
+                    .foregroundStyle(Theme.text)
+                Text(
+                    item.statusDate.isEmpty
+                    ? "这件衣物已经不在「在穿」列表里"
+                    : "\(DateUtil.friendlyDate(item.statusDate))处置 · 不在「在穿」列表里"
+                )
+                .font(.system(size: Theme.fontTiny))
+                .foregroundStyle(Theme.textSub)
+            }
+            Spacer(minLength: 4)
+            Button("放回衣橱") { model.restore() }
+                .buttonStyle(AppButtonStyle(kind: .soft, small: true))
+        }
+        .padding(12)
+        .cardStyle()
+        .padding(.top, 12)
     }
 
     /* ==================== 大图 ==================== */
@@ -259,29 +401,60 @@ struct ClothingDetailView: View {
     /* ==================== 穿着统计 ==================== */
 
     private func statsCard(_ item: ClothingItem) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(item.wearCount)")
-                    .font(.system(size: 22, weight: .semibold))
-                Text("穿着次数")
-                    .font(.system(size: Theme.fontTiny))
-                    .foregroundStyle(Theme.textSub)
+        VStack(spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(item.wearCount)")
+                        .font(.system(size: 22, weight: .semibold))
+                    Text("穿着次数")
+                        .font(.system(size: Theme.fontTiny))
+                        .foregroundStyle(Theme.textSub)
+                }
+                .frame(minWidth: 62, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(model.lastWornText.isEmpty ? "—" : model.lastWornText)
+                        .font(.system(size: Theme.fontSubtitle, weight: .medium))
+                    Text("最近穿着")
+                        .font(.system(size: Theme.fontTiny))
+                        .foregroundStyle(Theme.textSub)
+                }
+                .frame(minWidth: 62, alignment: .leading)
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(model.costText)
+                        .font(.system(size: Theme.fontSubtitle, weight: .medium))
+                        .foregroundStyle(item.costPerWear == nil ? Theme.textSub : Theme.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text("单次成本")
+                        .font(.system(size: Theme.fontTiny))
+                        .foregroundStyle(Theme.textSub)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .frame(minWidth: 70, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(model.lastWornText.isEmpty ? "—" : model.lastWornText)
-                    .font(.system(size: Theme.fontSubtitle, weight: .medium))
-                Text("最近穿着")
+            if item.price <= 0 {
+                Text("填上价格，就能算出每次穿它花了多少钱")
                     .font(.system(size: Theme.fontTiny))
-                    .foregroundStyle(Theme.textSub)
+                    .foregroundStyle(Theme.textLight)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if item.wearCount == 0 {
+                Text("价格 \(Money.text(item.price)) · 记录一次穿着就能看到单次成本")
+                    .font(.system(size: Theme.fontTiny))
+                    .foregroundStyle(Theme.textLight)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(minWidth: 70, alignment: .leading)
 
-            Spacer()
-
-            Button("今天穿了 +1") { model.wearOnce() }
-                .buttonStyle(AppButtonStyle(kind: .soft, small: true))
+            HStack(spacing: 8) {
+                Button("今天没穿 −1") { model.wearMinus() }
+                    .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+                Button("改次数") { showCountInput = true }
+                    .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+                Spacer(minLength: 4)
+                Button("今天穿了 +1") { model.wearOnce() }
+                    .buttonStyle(AppButtonStyle(kind: .soft, small: true))
+            }
         }
         .padding(12)
         .cardStyle()

@@ -12,7 +12,7 @@
 import SwiftUI
 
 final class ClothingEditModel: ObservableObject {
-    static let maxTags = 10
+    static let maxTags = ClothingLimits.maxTags
 
     let isEditing: Bool
     @Published var draft = ClothingDraft()

@@ -40,6 +40,12 @@ final class SettingsModel: ObservableObject {
     @Published var categoryText = ""
     @Published var cutoutSupported = CutoutService.shared.isSupported
     @Published var exportURL: URL?
+    /// 完整备份（数据 + 图片）的文件夹 URL，生成成功后交给系统分享面板
+    @Published var backupURL: URL?
+    @Published var backupText = ""
+    @Published var backingUp = false
+    @Published var restoring = false
+    @Published var restoreMessage: String?
 
     private var configuredQWeatherKey = ""
     private var configuredQWeatherHost = QWeatherService.defaultHost
@@ -175,6 +181,18 @@ final class SettingsModel: ObservableObject {
         settings = Database.shared.getSettings()
     }
 
+    /// 衣橱卡片上是否显示单次成本角标
+    func setShowCost(_ value: Bool) {
+        Database.shared.saveSettings { $0.showCostPerWear = value }
+        settings = Database.shared.getSettings()
+    }
+
+    /// 衣橱网格每行几件
+    func setGridColumns(_ value: Int) {
+        Database.shared.saveSettings { $0.gridColumns = value == 4 ? 4 : 3 }
+        settings = Database.shared.getSettings()
+    }
+
     /// 外观：system / light / dark（写入设置后由 App 入口统一应用）
     func setAppearance(_ value: String) {
         Database.shared.saveSettings { $0.appearance = value }
@@ -199,6 +217,40 @@ final class SettingsModel: ObservableObject {
     func copyJSON() {
         UIPasteboard.general.string = Database.shared.exportJSONString()
         ToastCenter.shared.show("已复制到剪贴板")
+    }
+
+    /* ==================== 完整备份 / 恢复 ==================== */
+
+    /// 生成「数据 + 图片」的完整备份文件夹，之后交给系统分享面板（存到「文件」/ AirDrop 都行）
+    func makeBackup() {
+        guard !backingUp else { return }
+        backingUp = true
+        defer { backingUp = false }
+        do {
+            let result = try BackupService.makeBackup()
+            backupURL = result.url
+            backupText = result.summary.folderName + " · 含 \(result.summary.imageCount) 张图片"
+            Haptic.success()
+        } catch {
+            ToastCenter.shared.show((error as? LocalizedError)?.errorDescription ?? "备份失败")
+        }
+    }
+
+    /// 从备份文件夹恢复（覆盖当前数据）
+    func restore(from folder: URL) {
+        guard !restoring else { return }
+        restoring = true
+        defer { restoring = false }
+        do {
+            let result = try BackupService.restore(from: folder)
+            refresh()
+            Haptic.success()
+            restoreMessage = """
+            已恢复 \(result.clothing) 件衣物、\(result.outfits) 套穿搭、\(result.inspirations) 条灵感（\(result.imageCount) 张图片）。
+            """
+        } catch {
+            restoreMessage = (error as? LocalizedError)?.errorDescription ?? "恢复失败"
+        }
     }
 
     /* ==================== 清空数据 ==================== */
@@ -226,9 +278,15 @@ struct SettingsView: View {
     @Environment(\.floatingBarInset) private var floatingBarInset
     @State private var showExportOptions = false
     @State private var showShareSheet = false
+    @State private var showBackupSheet = false
+    @State private var showRestorePicker = false
     @State private var confirmClear = false
     @State private var confirmClearAgain = false
     @State private var showCategoryEditor = false
+    @State private var showStats = false
+    @State private var showTags = false
+    @State private var showDeclutter = false
+    @State private var confirmRestore = false
     @FocusState private var weatherFieldFocused: Bool
 
     init(isActive: Bool = true) {
@@ -243,6 +301,7 @@ struct SettingsView: View {
 
                 SectionTitle(text: "衣橱")
                 categoryCard
+                wardrobeToolsCard
 
                 SectionTitle(text: "数据")
                 dataCard
@@ -271,11 +330,41 @@ struct SettingsView: View {
                 ActivityView(items: [url])
             }
         }
+        .sheet(isPresented: $showBackupSheet, onDismiss: { model.backupURL = nil }) {
+            if let url = model.backupURL {
+                ActivityView(items: [url])
+            }
+        }
+        .sheet(isPresented: $showRestorePicker) {
+            FolderPicker { url in
+                showRestorePicker = false
+                model.restore(from: url)
+            } onCancel: {
+                showRestorePicker = false
+            }
+        }
         .sheet(isPresented: $showCategoryEditor) {
             CategoryEditorSheet {
                 model.refreshCategories()
             }
         }
+        .navigationDestination(isPresented: $showStats) { StatsView() }
+        .navigationDestination(isPresented: $showTags) { TagManagerView() }
+        .navigationDestination(isPresented: $showDeclutter) { DeclutterView() }
+        .alert("恢复备份", isPresented: $confirmRestore) {
+            Button("取消", role: .cancel) {}
+            Button("选择备份文件夹", role: .destructive) { showRestorePicker = true }
+        } message: {
+            Text("会覆盖当前的全部数据（衣物、穿搭、灵感、图片）。建议先点「完整备份」把现在的数据存一份。")
+        }
+        .messageDialog(
+            isPresented: Binding(
+                get: { model.restoreMessage != nil },
+                set: { if !$0 { model.restoreMessage = nil } }
+            ),
+            title: "恢复备份",
+            message: model.restoreMessage ?? ""
+        )
         .alert("清空数据", isPresented: $confirmClear) {
             Button("取消", role: .cancel) {}
             Button("继续", role: .destructive) { confirmClearAgain = true }
@@ -307,6 +396,39 @@ struct SettingsView: View {
                 .tint(Theme.primary)
             }
             .frame(height: Theme.cellHeight)
+            .cellDivider()
+
+            HStack {
+                Text("卡片上显示单次成本")
+                    .font(.system(size: Theme.fontBody))
+                    .foregroundStyle(Theme.text)
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { model.settings.showCostPerWear },
+                    set: { model.setShowCost($0) }
+                ))
+                .labelsHidden()
+                .tint(Theme.primary)
+            }
+            .frame(height: Theme.cellHeight)
+            .cellDivider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("衣橱每行显示")
+                    .font(.system(size: Theme.fontBody))
+                    .foregroundStyle(Theme.text)
+                Picker("每行件数", selection: Binding(
+                    get: { model.settings.gridColumns },
+                    set: { model.setGridColumns($0) }
+                )) {
+                    Text("3 件").tag(3)
+                    Text("4 件").tag(4)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+            .padding(.top, 12)
+            .padding(.bottom, 14)
             .cellDivider()
 
             VStack(alignment: .leading, spacing: 8) {
@@ -362,6 +484,27 @@ struct SettingsView: View {
             )
             ValueRow(label: "本地存储占用", value: model.storageText)
             ValueRow(label: "图片文件", value: model.imageText)
+
+            TapRow(
+                label: "完整备份",
+                value: model.backingUp ? "打包中…" : "备份",
+                placeholder: "备份"
+            ) {
+                model.makeBackup()
+                if model.backupURL != nil { showBackupSheet = true }
+            }
+            if !model.backupText.isEmpty {
+                Text("上次打包：" + model.backupText)
+                    .font(.system(size: Theme.fontTiny))
+                    .foregroundStyle(Theme.textLight)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, 8)
+            }
+
+            TapRow(label: "恢复备份", value: "恢复", placeholder: "恢复") {
+                confirmRestore = true
+            }
+
             TapRow(label: "导出 JSON", value: "导出", placeholder: "导出") {
                 showExportOptions = true
             }
@@ -376,6 +519,23 @@ struct SettingsView: View {
             }
             TapRow(label: "清空数据", value: "清空", placeholder: "清空", danger: true, showDivider: false) {
                 confirmClear = true
+            }
+        }
+        .padding(.horizontal, 12)
+        .cardStyle()
+    }
+
+    /// 衣橱相关的几个工具页入口（统计 / 断舍离 / 标签）
+    private var wardrobeToolsCard: some View {
+        VStack(spacing: 0) {
+            TapRow(label: "衣橱统计", value: "单次成本 · 常青树 · 闲置", placeholder: "查看") {
+                showStats = true
+            }
+            TapRow(label: "标签管理", value: "改名 · 合并 · 删除", placeholder: "管理") {
+                showTags = true
+            }
+            TapRow(label: "断舍离", value: "建议处理 · 已处置", placeholder: "查看", showDivider: false) {
+                showDeclutter = true
             }
         }
         .padding(.horizontal, 12)

@@ -15,6 +15,11 @@ struct ClothingCard: View {
     var showLastWorn: Bool = true
     /// 是否显示穿着次数角标
     var showWearCount: Bool = true
+    /// 是否显示单次成本角标（设置页的显示设置）
+    var showCost: Bool = false
+    /// 多选模式：nil = 普通模式；true / false = 是否被勾选。
+    /// 多选时点哪儿都是「切换勾选」，点图片不再跳详情。
+    var selected: Bool?
     var onTapImage: () -> Void = {}
     var onTapCard: () -> Void = {}
 
@@ -29,27 +34,14 @@ struct ClothingCard: View {
                 } else {
                     StoredImage(path: image, mode: .fit, maxPixel: 600, contentOnly: true)
                 }
-                if showWearCount && item.wearCount > 0 {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            Text("\(item.wearCount) 次")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 6)
-                                .frame(height: 17)
-                                .background(Color(hex: 0x2E2A28).opacity(0.55))
-                                .clipShape(Capsule())
-                                .padding(5)
-                        }
-                    }
-                }
+                badges
             }
             .aspectRatio(1, contentMode: .fit)
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
-            .onTapGesture { onTapImage() }
+            .onTapGesture {
+                if selected != nil { onTapCard() } else { onTapImage() }
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
@@ -75,8 +67,76 @@ struct ClothingCard: View {
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
         .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
+        // 已处置的衣物整张压暗一点，一眼能和还在穿的区分开
+        .opacity(item.isReleased ? 0.62 : 1)
         .contentShape(Rectangle())
         .onTapGesture { onTapCard() }
+    }
+
+    /* ==================== 图片上的角标 ==================== */
+
+    @ViewBuilder
+    private var badges: some View {
+        // 三个角各放一个角标，窄卡片（4 列）时也不会叠在一起：
+        //   左上 已处置 / 右上 穿着次数 / 左下 单次成本
+        ZStack {
+            if item.isReleased {
+                corner(alignment: .topLeading) {
+                    capsule(item.releaseMethod?.shortTitle ?? "已处置", fill: Theme.textSub)
+                }
+            }
+
+            if showWearCount && item.wearCount > 0 {
+                corner(alignment: .topTrailing) {
+                    capsule("\(item.wearCount) 次", fill: Color(hex: 0x2E2A28).opacity(0.55))
+                }
+            }
+
+            if showCost, let cost = item.costPerWear {
+                corner(alignment: .bottomLeading) {
+                    capsule(Money.costPerWear(cost), fill: Theme.primary.opacity(0.92), weight: .medium)
+                }
+            }
+
+            // 多选：右上角盖住次数角标（多选时本来也不看次数）
+            if let selected {
+                corner(alignment: .topTrailing) {
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 19))
+                        .foregroundStyle(selected ? Theme.primary : Color.white)
+                        .background(
+                            Circle()
+                                .fill(selected ? Color.white : Color(hex: 0x2E2A28).opacity(0.28))
+                                .frame(width: 17, height: 17)
+                        )
+                        .padding(5)
+                }
+            }
+        }
+    }
+
+    private func corner<Content: View>(
+        alignment: Alignment,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+    }
+
+    private func capsule(
+        _ text: String,
+        fill: Color,
+        weight: Font.Weight = .regular
+    ) -> some View {
+        Text(text)
+            .font(.system(size: 10, weight: weight))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .padding(.horizontal, 6)
+            .frame(height: 17)
+            .background(fill)
+            .clipShape(Capsule())
+            .padding(5)
     }
 
     /// coverImage 优先，没有再退回原图

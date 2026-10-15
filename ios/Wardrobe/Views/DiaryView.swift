@@ -31,6 +31,8 @@ struct DiaryOutfitRow: Identifiable, Hashable {
     var id: String
     var cover: String
     var hasCover: Bool
+    /// 当天拍的那张照片（抠好的贴图）
+    var photo: String
     var note: String
     var thumbs: [OutfitThumb]
     var more: Int
@@ -46,6 +48,8 @@ final class DiaryModel: ObservableObject {
     @Published var selectedDate = DateUtil.today()
     @Published var cells: [DiaryCell] = []
     @Published var outfits: [DiaryOutfitRow] = []
+    /// 每天的那张贴图（日历格子里显示），date -> 图片文件名
+    @Published var photoByDate: [String: String] = [:]
     @Published var totalOutfits = 0
     @Published var totalDays = 0
 
@@ -60,6 +64,8 @@ final class DiaryModel: ObservableObject {
 
     private var weatherRecord: WeatherRecord?
     private let today = DateUtil.today()
+    /// 刚选好、还没抠图的那张原图（用户中途取消时要清掉，别留垃圾）
+    private var pendingPhotoSource = ""
     /// 已经自动抓过的「日期 | 城市」：同一个不再重复请求（配好天气来源后自动获取用）
     private var autoFetched: Set<String> = []
     private var autoFetching = false
@@ -94,13 +100,23 @@ final class DiaryModel: ObservableObject {
     func refresh() {
         let counts = Database.shared.countOutfitsByDate()
         let dates = Database.shared.listOutfitDates()
+        let allOutfits = Database.shared.listOutfits()
 
         cells = DateUtil.monthGrid(monthKey).map { cell in
             DiaryCell(cell: cell, count: counts[cell.date] ?? 0, selected: cell.date == selectedDate)
         }
         outfits = buildOutfits(selectedDate)
-        totalOutfits = Database.shared.listOutfits().count
+        totalOutfits = allOutfits.count
         totalDays = dates.count
+
+        // 日历格子上的贴图：同一天多张时用最新那张
+        var photos: [String: (photo: String, time: Double)] = [:]
+        for outfit in allOutfits where !outfit.photo.isEmpty {
+            if let existing = photos[outfit.date], existing.time >= outfit.createTime { continue }
+            photos[outfit.date] = (outfit.photo, outfit.createTime)
+        }
+        photoByDate = photos.mapValues { $0.photo }
+
         loadWeather(selectedDate)
     }
 
@@ -122,13 +138,16 @@ final class DiaryModel: ObservableObject {
             let seasons = outfit.seasons
             return DiaryOutfitRow(
                 id: outfit.id,
-                cover: outfit.cover.isEmpty ? firstImage : outfit.cover,
+                cover: outfit.photo.isEmpty ? (outfit.cover.isEmpty ? firstImage : outfit.cover) : outfit.photo,
                 hasCover: !outfit.cover.isEmpty,
+                photo: outfit.photo,
                 note: outfit.note,
                 thumbs: Array(thumbs),
                 more: max(0, items.count - thumbs.count),
                 // 顺带把「我的搭配」里标的季节显示出来，回看时一眼知道这套属于哪一季
-                countText: "\(items.count) 件衣物" + (seasons.isEmpty ? "" : " · " + seasons.joined(separator: "/"))
+                countText: items.isEmpty
+                    ? (outfit.photo.isEmpty ? "没有关联衣物" : "只记了一张照片")
+                    : "\(items.count) 件衣物" + (seasons.isEmpty ? "" : " · " + seasons.joined(separator: "/"))
             )
         }
     }
@@ -360,6 +379,52 @@ final class DiaryModel: ObservableObject {
         ToastCenter.shared.show(cover.isEmpty ? "已恢复默认封面" : "封面已更新")
         refresh()
     }
+
+    /* ==================== 当天的照片（贴进日历的那张） ==================== */
+
+    /// 选好照片后先记下来（抠图编辑器要拿它当底图）
+    func trackPhotoSource(_ path: String) {
+        if !pendingPhotoSource.isEmpty, pendingPhotoSource != path,
+           !Database.shared.isImageInUse(pendingPhotoSource) {
+            ImageStore.shared.removeFile(pendingPhotoSource)
+        }
+        pendingPhotoSource = path
+    }
+
+    /// 用户在抠图编辑器里点了取消：那张临时原图不再需要
+    func discardPendingPhoto() {
+        guard !pendingPhotoSource.isEmpty else { return }
+        if !Database.shared.isImageInUse(pendingPhotoSource) {
+            ImageStore.shared.removeFile(pendingPhotoSource)
+        }
+        pendingPhotoSource = ""
+    }
+
+    /// 把一张抠好的照片记到选中的那天：
+    /// 那天已经有记录但还没有照片，就挂到最近的那条上；否则单独建一条「只有照片」的记录。
+    func attachPhoto(_ path: String) {
+        guard !path.isEmpty else { return }
+        let list = Database.shared.listOutfits(date: selectedDate)
+        if let target = list.first(where: { $0.photo.isEmpty }) {
+            Database.shared.updateOutfit(target.id) { item in
+                item.photo = path
+            }
+        } else {
+            var draft = OutfitDraft()
+            draft.date = selectedDate
+            draft.photo = path
+            Database.shared.addOutfit(draft)
+        }
+        // 抠图成品和临时底图不是同一张时，底图就没用了
+        if !pendingPhotoSource.isEmpty, pendingPhotoSource != path,
+           !Database.shared.isImageInUse(pendingPhotoSource) {
+            ImageStore.shared.removeFile(pendingPhotoSource)
+        }
+        pendingPhotoSource = ""
+        refresh()
+        Haptic.success()
+        ToastCenter.shared.show("照片已记到 " + DateUtil.friendlyDate(selectedDate))
+    }
 }
 
 struct DiaryView: View {
@@ -376,6 +441,9 @@ struct DiaryView: View {
     @State private var showImagePicker = false
     @State private var showCityPicker = false
     @State private var showManualCityInput = false
+    @State private var showPhotoPicker = false
+    @State private var showPhotoEditor = false
+    @State private var photoSource = ""
 
     init(isActive: Bool = true) {
         self.isActive = isActive
@@ -402,6 +470,25 @@ struct DiaryView: View {
         }
         .navigationDestination(isPresented: $showAddOutfit) {
             OutfitEditView(outfitId: "", date: model.selectedDate)
+        }
+        .navigationDestination(isPresented: $showPhotoEditor) {
+            ImageEditorView(source: photoSource, onDone: { path in
+                model.attachPhoto(path)
+            })
+        }
+        .imagePicker(isPresented: $showPhotoPicker) { datas in
+            guard let data = datas.first,
+                  let saved = ImageStore.shared.saveData(data, prefix: "outfit-photo") else {
+                ToastCenter.shared.show("选图失败，请重试")
+                return
+            }
+            model.trackPhotoSource(saved)
+            photoSource = saved
+            showPhotoEditor = true
+        }
+        .onChange(of: showPhotoEditor) { _, showing in
+            // 编辑器被取消（没点确定）时，把那张临时原图清掉
+            if !showing { model.discardPendingPhoto() }
         }
         .onChange(of: isActive) { _, active in
             if active { model.refresh() } // 从编辑页 / 详情页回来时兜底刷新一次
@@ -494,6 +581,20 @@ struct DiaryView: View {
     }
 
     private func dayCell(_ item: DiaryCell) -> some View {
+        // 那天记了照片：格子让给贴图，日期缩小成左上角的小徽章
+        let sticker = item.cell.inMonth ? (model.photoByDate[item.cell.date] ?? "") : ""
+        return Group {
+            if sticker.isEmpty {
+                plainDayCell(item)
+            } else {
+                stickerDayCell(item, sticker: sticker)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { model.select(item.cell.date) }
+    }
+
+    private func plainDayCell(_ item: DiaryCell) -> some View {
         VStack(spacing: 0) {
             ZStack {
                 Circle()
@@ -515,8 +616,35 @@ struct DiaryView: View {
                 .padding(.bottom, 4)
         }
         .frame(height: 44)
-        .contentShape(Rectangle())
-        .onTapGesture { model.select(item.cell.date) }
+    }
+
+    /// 贴图格：抠好背景的衣物照片贴在日期上（透明底，所以直接浮在卡片上）
+    private func stickerDayCell(_ item: DiaryCell, sticker: String) -> some View {
+        ZStack(alignment: .topLeading) {
+            StoredImage(path: sticker, mode: .fit, maxPixel: 200, contentOnly: true)
+                .frame(width: 40, height: 36)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 6)
+
+            Text("\(item.cell.day)")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(item.cell.isToday && !item.selected ? Theme.primary : Theme.textSub)
+                .frame(width: 15, height: 15)
+                .background(Circle().fill(Theme.card))
+                .overlay(
+                    Circle().stroke(item.cell.isToday ? Theme.primary : Theme.border, lineWidth: 0.5)
+                )
+                .offset(x: 1, y: 1)
+        }
+        .frame(height: 44)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(item.selected ? Theme.primarySoft : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .stroke(item.selected ? Theme.primary : Color.clear, lineWidth: 1.5)
+        )
     }
 
     private func dayColor(_ item: DiaryCell) -> Color {
@@ -539,6 +667,17 @@ struct DiaryView: View {
                     .foregroundStyle(Theme.textSub)
             }
             Spacer()
+            Button {
+                showPhotoPicker = true
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "camera")
+                        .font(.system(size: 11))
+                    Text("记照片")
+                }
+            }
+            .buttonStyle(AppButtonStyle(kind: .ghost, small: true))
+            .padding(.trailing, 6)
             Button("添加穿搭") { showAddOutfit = true }
                 .buttonStyle(AppButtonStyle(kind: .soft, small: true))
         }
@@ -711,7 +850,13 @@ struct DiaryView: View {
                                     .foregroundStyle(Theme.textLight)
                             )
                     } else {
-                        StoredImage(path: row.cover, mode: .fit, maxPixel: 700)
+                        StoredImage(
+                            path: row.cover,
+                            mode: .fit,
+                            maxPixel: 700,
+                            // 当天的照片按内容裁紧，别让透明留白把衣服挤小
+                            contentOnly: !row.photo.isEmpty
+                        )
                             .background(Theme.imageWell)
                             .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous))
                     }

@@ -47,9 +47,21 @@ final class OutfitDetailModel: ObservableObject {
 
     var cover: String {
         guard let outfit else { return "" }
+        // 有当天照片时优先看照片（真实记录比合成封面更有意义）
+        if !outfit.photo.isEmpty { return outfit.photo }
         if !outfit.cover.isEmpty { return outfit.cover }
         guard let first = items.first else { return "" }
         return first.coverImage.isEmpty ? first.originalImage : first.coverImage
+    }
+
+    /// 是不是「当天的照片」（决定要不要铺棋盘格）
+    var showsPhoto: Bool {
+        !(outfit?.photo.isEmpty ?? true)
+    }
+
+    var wearText: String {
+        guard let outfit else { return "" }
+        return outfit.wearCounted ? "已计入（这几件各 +1 次）" : "未计入穿着次数"
     }
 
     var countText: String {
@@ -73,10 +85,14 @@ final class OutfitDetailModel: ObservableObject {
         guard let outfit else { return }
         deleting = true
         let cover = outfit.cover
+        let photo = outfit.photo
         Database.shared.deleteOutfit(outfitId)
         // 自定义封面图是我们沙箱里的文件；没有别处引用时一起删掉
         if !cover.isEmpty, !Database.shared.isImageInUse(cover) {
             ImageStore.shared.removeFile(cover)
+        }
+        if !photo.isEmpty, !Database.shared.isImageInUse(photo) {
+            ImageStore.shared.removeFile(photo)
         }
     }
 
@@ -84,6 +100,13 @@ final class OutfitDetailModel: ObservableObject {
     func openInFitting() {
         AppState.shared.pendingFitting = PendingFitting(outfitId: outfitId)
         AppState.shared.selectedTab = .fitting
+    }
+
+    /// 分享用的卡片图
+    func shareImage() -> UIImage? {
+        guard let outfit else { return nil }
+        let coverImage = cover.isEmpty ? nil : ImageStore.shared.image(for: cover, maxPixelSize: 1400)
+        return SharePoster.outfit(outfit, items: items, cover: coverImage)
     }
 }
 
@@ -99,6 +122,7 @@ struct OutfitDetailView: View {
     @State private var showEdit = false
     @State private var showPreview = false
     @State private var confirmDelete = false
+    @State private var showShare = false
 
     init(outfitId: String) {
         self.outfitId = outfitId
@@ -147,6 +171,7 @@ struct OutfitDetailView: View {
         .background(Theme.bg)
         .navigationTitle("穿搭详情")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { toolbarMenu }
         .safeAreaInset(edge: .bottom) { toolbar }
         .navigationDestination(item: $clothingId) { id in
             ClothingDetailView(clothingId: id)
@@ -156,6 +181,11 @@ struct OutfitDetailView: View {
         }
         .fullScreenCover(isPresented: $showPreview) {
             ImagePreviewSheet(paths: [model.cover], isPresented: $showPreview)
+        }
+        .sheet(isPresented: $showShare) {
+            if let image = model.shareImage() {
+                ActivityView(items: [image])
+            }
         }
         .alert("删除穿搭", isPresented: $confirmDelete) {
             Button("取消", role: .cancel) {}
@@ -190,8 +220,18 @@ struct OutfitDetailView: View {
                         .padding(.horizontal, 20)
                 }
             } else {
-                StoredImage(path: model.cover, mode: .fit, maxPixel: 1400)
+                ZStack {
+                    // 贴图是透明底的，铺一层柔和的底色比棋盘格干净
+                    Theme.imageWell
+                    StoredImage(
+                        path: model.cover,
+                        mode: .fit,
+                        maxPixel: 1400,
+                        // 当天的照片四周有透明留白，按内容裁紧才撑得满
+                        contentOnly: model.showsPhoto
+                    )
                     .frame(height: 240)
+                }
             }
         }
         .frame(minHeight: 260)
@@ -203,11 +243,35 @@ struct OutfitDetailView: View {
         }
     }
 
+    /* ==================== 顶部菜单：分享 ==================== */
+
+    private var toolbarMenu: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button {
+                    showShare = true
+                } label: {
+                    Label("分享这套穿搭", systemImage: "square.and.arrow.up")
+                }
+                Button {
+                    if let image = model.shareImage() { PhotoSaver.save(image) }
+                } label: {
+                    Label("保存到相册", systemImage: "square.and.arrow.down")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 17))
+                    .foregroundStyle(Theme.text)
+            }
+        }
+    }
+
     private var infoCard: some View {
         VStack(spacing: 0) {
             ValueRow(label: "日期", value: model.dateLabel)
             ValueRow(label: "关联衣物", value: model.countText)
-            ValueRow(label: "季节", value: model.seasonText, placeholder: "未设置", showDivider: false)
+            ValueRow(label: "季节", value: model.seasonText, placeholder: "未设置")
+            ValueRow(label: "穿着次数", value: model.wearText, showDivider: false)
         }
         .padding(.horizontal, 12)
         .cardStyle()

@@ -17,6 +17,10 @@ miniprogram_npm/
 # CI 导出的数据包（设置页「导出 JSON」的产物）
 exports/
 
+# 参考用的第三方文档（LookLog 的介绍 / 发布记录 / 隐私政策等）：
+# 只在本地当资料看，不是这个项目的代码，不进仓库
+docs-reference/
+
 # ==================== iOS 版（ios/ 目录）====================
 # Xcode 每台机器、每个人的界面状态
 ios/**/xcuserdata/

@@ -18,6 +18,9 @@ struct WardrobeApp: App {
         // 对应 app.js 的 onLaunch：先初始化数据层
         Database.shared.initialize()
 
+        // 临时自检：带 -selftest 启动参数时跑一遍数据层检查（见 App/SelfTest.swift）
+        _ = SelfTest.runIfRequested()
+
         let settings = Database.shared.getSettings()
         AppState.shared.markReady(
             settings: settings,

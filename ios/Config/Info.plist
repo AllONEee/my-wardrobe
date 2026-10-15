@@ -37,6 +37,8 @@
 	<string>用于获取当天所在城市的天气，记录在穿搭日记里。位置只在本机使用，不会上传。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>用于从相册选择衣物照片，照片只保存在这台手机上。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>用于把穿搭卡片保存到相册，方便你分享给别人。</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>

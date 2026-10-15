@@ -455,6 +455,10 @@ final class FittingModel: ObservableObject {
         draft.note = old?.note ?? ""
         draft.date = old?.date ?? DateUtil.today()
         draft.createTime = old?.createTime ?? 0
+        // 季节和当天的照片是在别的页面维护的（日记 / 穿搭编辑），这里保存画布时要原样带过去，
+        // 不然在试衣间按一次保存就把它们清空了
+        draft.seasons = old?.seasons ?? []
+        draft.photo = old?.photo ?? ""
         let outfit = Database.shared.saveOutfit(draft)
 
         // 旧封面如果只被这套搭配用着，替换后就没用了

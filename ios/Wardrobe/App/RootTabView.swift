@@ -46,6 +46,16 @@ struct RootTabView: View {
     /// 首屏就要把当前选中的 tab 建出来（比如启动时直接落在「设置」上，否则内容区会是空的）
     @State private var visited: Set<AppTab> = [AppState.shared.selectedTab]
 
+    init() {
+        // 调试用：`xcrun simctl launch … -tab diary` 可以直接落在某个 tab 上（截图/自检用）
+        let args = ProcessInfo.processInfo.arguments
+        if let index = args.firstIndex(of: "-tab"), index + 1 < args.count,
+           let tab = AppTab(rawValue: args[index + 1]) {
+            AppState.shared.selectedTab = tab
+            _visited = State(initialValue: [tab])
+        }
+    }
+
     var body: some View {
         // 页面铺满整屏，底栏浮在上面：滚动内容会从玻璃下面穿过去（不是被一条色块挡住）
         ZStack(alignment: .bottom) {

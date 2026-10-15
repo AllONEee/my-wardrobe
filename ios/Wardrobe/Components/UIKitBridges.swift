@@ -12,6 +12,7 @@
 import PhotosUI
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /* ==================== 轻提示（对应 wx.showToast） ==================== */
 
@@ -20,21 +21,43 @@ final class ToastCenter: ObservableObject {
 
     @Published private(set) var message = ""
     @Published private(set) var visible = false
+    /// 轻提示里的动作按钮（比如「+1」之后的「撤销」）
+    @Published private(set) var actionTitle = ""
 
     private var work: DispatchWorkItem?
+    private var action: (() -> Void)?
 
     private init() {}
 
-    func show(_ text: String, duration: TimeInterval = 1.6) {
+    func show(
+        _ text: String,
+        duration: TimeInterval = 1.6,
+        actionTitle: String = "",
+        action: (() -> Void)? = nil
+    ) {
         guard !text.isEmpty else { return }
         work?.cancel()
         message = text
+        self.actionTitle = actionTitle
+        self.action = action
         visible = true
+        // 带按钮的提示要多停一会儿，不然手还没抬起来就没了
+        let seconds = action == nil ? duration : max(duration, 3.4)
         let task = DispatchWorkItem { [weak self] in
             withAnimation(.easeOut(duration: 0.2)) { self?.visible = false }
         }
         work = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: task)
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: task)
+    }
+
+    /// 点了提示里的动作按钮
+    func performAction() {
+        let block = action
+        work?.cancel()
+        action = nil
+        actionTitle = ""
+        withAnimation(.easeOut(duration: 0.2)) { visible = false }
+        block?()
     }
 }
 
@@ -44,17 +67,27 @@ struct ToastOverlayModifier: ViewModifier {
     func body(content: Content) -> some View {
         content.overlay(alignment: .bottom) {
             if center.visible {
-                Text(center.message)
-                    .font(.system(size: Theme.fontSmall))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(Theme.toast)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .padding(.horizontal, 40)
-                    .padding(.bottom, 96)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                HStack(spacing: 14) {
+                    Text(center.message)
+                        .font(.system(size: Theme.fontSmall))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                    if !center.actionTitle.isEmpty {
+                        Button(center.actionTitle) {
+                            center.performAction()
+                        }
+                        .font(.system(size: Theme.fontSmall, weight: .semibold))
+                        .foregroundStyle(Theme.primary)
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Theme.toast)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .padding(.horizontal, 40)
+                .padding(.bottom, 96)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
         .animation(.easeOut(duration: 0.18), value: center.visible)
@@ -376,6 +409,47 @@ struct ActivityView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+/* ==================== 选一个文件夹（恢复备份用） ==================== */
+
+/// 让用户在「文件」App 里挑一个文件夹（备份就是一个文件夹：data.json + images/）
+struct FolderPicker: UIViewControllerRepresentable {
+    let onPick: (URL) -> Void
+    let onCancel: () -> Void
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
+        picker.allowsMultipleSelection = false
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        private let parent: FolderPicker
+
+        init(_ parent: FolderPicker) {
+            self.parent = parent
+        }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard let url = urls.first else {
+                parent.onCancel()
+                return
+            }
+            parent.onPick(url)
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            parent.onCancel()
+        }
+    }
 }
 
 /* ==================== 触感反馈（对应 wx.vibrateShort） ==================== */

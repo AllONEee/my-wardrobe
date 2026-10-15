@@ -41,6 +41,10 @@ struct ClothingDraft {
     var note: String = ""
     var originalImage: String = ""
     var coverImage: String = ""
+    /// 断舍离：空 = 还在穿
+    var status: String = ""
+    var statusDate: String = ""
+    var soldPrice: String = ""
 }
 
 /// 穿搭表单（对应 outfit-edit 页）
@@ -54,6 +58,11 @@ struct OutfitDraft {
     var date: String = DateUtil.today()
     /// 0 表示新建
     var createTime: Double = 0
+    /// 当天的穿搭照片（抠好的贴图）
+    var photo: String = ""
+    /// 保存时是否把这几件计入穿着次数：
+    /// nil = 沿用原来的状态（新建时为 false），true = 计入，false = 不计入（原来计入过的会回滚）
+    var countWear: Bool?
 }
 
 final class Database {
@@ -159,9 +168,19 @@ final class Database {
 
     /* ==================== 衣物 ==================== */
 
-    /// 列表查询：`category` / `season` 传「全部」或空表示不过滤，`keyword` 按名称和备注搜索
-    func listClothing(category: String = Wardrobe.all, season: String = Wardrobe.all, keyword: String = "") -> [ClothingItem] {
+    /// 列表查询：`category` / `season` 传「全部」或空表示不过滤，`keyword` 按名称和备注搜索。
+    /// 默认只返回还在穿的衣物；`includeReleased` 打开后连已断舍离的也一起返回（统计 / 断舍离页用）。
+    func listClothing(
+        category: String = Wardrobe.all,
+        season: String = Wardrobe.all,
+        keyword: String = "",
+        includeReleased: Bool = false,
+        sort: WardrobeSort = .latest
+    ) -> [ClothingItem] {
         var list = readClothingList()
+        if !includeReleased {
+            list = list.filter { $0.isActive }
+        }
         if !category.isEmpty, category != Wardrobe.all {
             list = list.filter { $0.category == category }
         }
@@ -174,11 +193,66 @@ final class Database {
                 $0.name.lowercased().contains(word) || $0.note.lowercased().contains(word)
             }
         }
-        return list.sorted { $0.createTime > $1.createTime }
+        return Self.sortClothing(list, by: sort)
     }
 
     func listClothing(filter: WardrobeFilter) -> [ClothingItem] {
-        listClothing(category: filter.category, season: filter.season, keyword: filter.keyword)
+        listClothing(
+            category: filter.category,
+            season: filter.season,
+            keyword: filter.keyword,
+            includeReleased: filter.showReleased,
+            sort: filter.currentSort
+        )
+    }
+
+    /// 全部衣物（连已断舍离的一起，统计页 / 断舍离页用）
+    func listAllClothing() -> [ClothingItem] {
+        readClothingList()
+    }
+
+    /// 排序规则集中放这里，衣橱页和统计页共用同一套（「没有值」的一律排最后，不参与比大小）
+    static func sortClothing(_ list: [ClothingItem], by sort: WardrobeSort) -> [ClothingItem] {
+        switch sort {
+        case .latest:
+            return list.sorted { $0.createTime > $1.createTime }
+        case .lastWorn:
+            return list.sorted { a, b in
+                if a.lastWornDate.isEmpty != b.lastWornDate.isEmpty { return !a.lastWornDate.isEmpty }
+                if a.lastWornDate != b.lastWornDate { return a.lastWornDate > b.lastWornDate }
+                return a.createTime > b.createTime
+            }
+        case .mostWorn:
+            return list.sorted { a, b in
+                if a.wearCount != b.wearCount { return a.wearCount > b.wearCount }
+                return a.createTime > b.createTime
+            }
+        case .costHigh:
+            return list.sorted { a, b in
+                switch (a.costPerWear, b.costPerWear) {
+                case let (left?, right?):
+                    if left != right { return left > right }
+                    return a.createTime > b.createTime
+                case (nil, nil):
+                    return a.createTime > b.createTime
+                case (nil, _):
+                    return false
+                case (_, nil):
+                    return true
+                }
+            }
+        case .priceHigh:
+            return list.sorted { a, b in
+                if a.price != b.price { return a.price > b.price }
+                return a.createTime > b.createTime
+            }
+        case .purchaseNew:
+            return list.sorted { a, b in
+                if a.purchaseDate.isEmpty != b.purchaseDate.isEmpty { return !a.purchaseDate.isEmpty }
+                if a.purchaseDate != b.purchaseDate { return a.purchaseDate > b.purchaseDate }
+                return a.createTime > b.createTime
+            }
+        }
     }
 
     func getClothing(_ id: String) -> ClothingItem? {
@@ -200,6 +274,25 @@ final class Database {
         indexAdd(item.id, .clothing)
         emitChange(.clothingChange, action: "add", id: item.id)
         return item
+    }
+
+    /// 批量导入衣物（相册多选一次进来好几件）：一次写盘 + 一次事件
+    @discardableResult
+    func addClothingBatch(_ drafts: [ClothingDraft]) -> [ClothingItem] {
+        guard !drafts.isEmpty else { return [] }
+        var list = readClothingList()
+        var index = readIndex()
+        var created: [ClothingItem] = []
+        for draft in drafts {
+            let item = normalize(draft, id: nextID(.clothing), createTime: Date().milliseconds)
+            list.append(item)
+            index[item.id] = EntityKind.clothing.rawValue
+            created.append(item)
+        }
+        writeClothingList(list)
+        storage.set(.idIndex, index)
+        emitChange(.clothingChange, action: "add", reason: "batch")
+        return created
     }
 
     @discardableResult
@@ -274,11 +367,252 @@ final class Database {
     func increaseWearCount(_ id: String, step: Int = 1) -> ClothingItem? {
         guard let item = getClothing(id) else { return nil }
         let count = max(0, item.wearCount + step)
-        let lastWorn = step > 0 ? DateUtil.today() : item.lastWornDate
+        var lastWorn = step > 0 ? max(item.lastWornDate, DateUtil.today()) : item.lastWornDate
+        // 减到 0 次时「最近穿着」已经没有意义了，清掉，免得卡片上还挂着个旧日期
+        if count == 0 { lastWorn = "" }
         return updateClothing(id) { next in
             next.wearCount = count
             next.lastWornDate = lastWorn
         }
+    }
+
+    /// 直接把次数改成想要的值（衣物详情页的「改次数」/ 撤销用），一次写盘
+    @discardableResult
+    func setWearCount(_ id: String, count: Int, lastWornDate: String? = nil) -> ClothingItem? {
+        guard let item = getClothing(id) else { return nil }
+        let value = max(0, count)
+        let lastWorn = lastWornDate ?? (value == 0 ? "" : item.lastWornDate)
+        return updateClothing(id) { next in
+            next.wearCount = value
+            next.lastWornDate = lastWorn
+        }
+    }
+
+    /// 撤销 / 恢复用：把一件衣物整体还原成之前的样子（次数 + 最近穿着日期）
+    @discardableResult
+    func restoreWear(_ id: String, wearCount: Int, lastWornDate: String) -> ClothingItem? {
+        setWearCount(id, count: wearCount, lastWornDate: max(0, wearCount) == 0 ? "" : lastWornDate)
+    }
+
+    /* ==================== 断舍离（处置 / 恢复） ==================== */
+
+    /// 处置一件衣物：记下方式和日期，卖掉时还能记一笔回血金额。
+    /// 衣物本身不删除（历史穿搭里还要看得到），只是从「在用」列表里退出去。
+    @discardableResult
+    func releaseClothing(
+        _ id: String,
+        method: ReleaseMethod,
+        date: String = DateUtil.today(),
+        soldPrice: Double = 0
+    ) -> ClothingItem? {
+        updateClothing(id) { item in
+            item.status = method.rawValue
+            item.statusDate = date
+            item.soldPrice = method.needsPrice ? max(0, soldPrice) : 0
+        }
+    }
+
+    /// 重新回到衣橱（断舍离点错了 / 又留下了）
+    @discardableResult
+    func restoreClothing(_ id: String) -> ClothingItem? {
+        updateClothing(id) { item in
+            item.status = ""
+            item.statusDate = ""
+            item.soldPrice = 0
+        }
+    }
+
+    /// 批量处置（衣橱多选里用），一次写盘
+    @discardableResult
+    func releaseClothingBatch(
+        _ ids: [String],
+        method: ReleaseMethod,
+        date: String = DateUtil.today()
+    ) -> Int {
+        guard !ids.isEmpty else { return 0 }
+        let target = Set(ids)
+        var list = readClothingList()
+        var changed = 0
+        for index in list.indices where target.contains(list[index].id) {
+            list[index].status = method.rawValue
+            list[index].statusDate = date
+            list[index].soldPrice = 0
+            changed += 1
+        }
+        guard changed > 0 else { return 0 }
+        writeClothingList(list)
+        emitChange(.clothingChange, action: "release", reason: "batch")
+        return changed
+    }
+
+    /// 批量恢复到衣橱
+    @discardableResult
+    func restoreClothingBatch(_ ids: [String]) -> Int {
+        guard !ids.isEmpty else { return 0 }
+        let target = Set(ids)
+        var list = readClothingList()
+        var changed = 0
+        for index in list.indices where target.contains(list[index].id) {
+            list[index].status = ""
+            list[index].statusDate = ""
+            list[index].soldPrice = 0
+            changed += 1
+        }
+        guard changed > 0 else { return 0 }
+        writeClothingList(list)
+        emitChange(.clothingChange, action: "restore", reason: "batch")
+        return changed
+    }
+
+    /* ==================== 批量操作（衣橱多选） ====================
+     多选改动都是「一批 id 一次写盘」，不要在调用方循环单件接口 ——
+     每次单件写入都会把整个列表重新编码落盘，几百件时会明显卡。
+     */
+
+    /// 批量改（分类 / 季节 / 标签都用它），只写一次
+    @discardableResult
+    func updateClothingBatch(_ ids: [String], patch: (inout ClothingItem) -> Void) -> Int {
+        guard !ids.isEmpty else { return 0 }
+        let target = Set(ids)
+        var list = readClothingList()
+        var changed = 0
+        for index in list.indices where target.contains(list[index].id) {
+            patch(&list[index])
+            list[index].id = list[index].id
+            list[index].wearCount = max(0, list[index].wearCount)
+            // 季节统一按固定顺序排，各处展示稳定
+            list[index].seasons = list[index].seasons
+                .filter { Wardrobe.seasons.contains($0) }
+                .sorted { (Wardrobe.seasons.firstIndex(of: $0) ?? 0) < (Wardrobe.seasons.firstIndex(of: $1) ?? 0) }
+            changed += 1
+        }
+        guard changed > 0 else { return 0 }
+        writeClothingList(list)
+        emitChange(.clothingChange, action: "batch", reason: "update")
+        return changed
+    }
+
+    /// 批量删除：衣物列表 / 穿搭的关联 / 灵感的关联 / id 索引只写一次，图片最后统一回收
+    @discardableResult
+    func deleteClothingBatch(_ ids: [String]) -> (clothing: Int, outfits: Int, inspirations: Int) {
+        guard !ids.isEmpty else { return (0, 0, 0) }
+        let target = Set(ids)
+
+        let all = readClothingList()
+        let removed = all.filter { target.contains($0.id) }
+        let images = removed.flatMap { [$0.coverImage, $0.originalImage] }.filter { !$0.isEmpty }
+        writeClothingList(all.filter { !target.contains($0.id) })
+
+        var index = readIndex()
+        ids.forEach { index.removeValue(forKey: $0) }
+        storage.set(.idIndex, index)
+
+        var affectedOutfits = 0
+        let outfits = readOutfitList().map { outfit -> Outfit in
+            guard outfit.clothingIds.contains(where: { target.contains($0) }) else { return outfit }
+            affectedOutfits += 1
+            var next = outfit
+            next.clothingIds = outfit.clothingIds.filter { !target.contains($0) }
+            next.canvasData = outfit.canvasData.filter { !target.contains($0.clothingId) }
+            return next
+        }
+        if affectedOutfits > 0 {
+            writeOutfitList(outfits)
+            emitChange(.outfitChange, action: "update", reason: "clothing-deleted")
+        }
+
+        var affectedInspirations = 0
+        let inspirations = readInspirationList().map { item -> Inspiration in
+            guard item.clothingIds.contains(where: { target.contains($0) }) else { return item }
+            affectedInspirations += 1
+            var next = item
+            next.clothingIds = item.clothingIds.filter { !target.contains($0) }
+            return next
+        }
+        if affectedInspirations > 0 {
+            writeInspirationList(inspirations)
+            emitChange(.inspirationChange, action: "update", reason: "clothing-deleted")
+        }
+
+        // 图片文件在数据层之外，统一回收（没被别处引用才删）
+        images.forEach { path in
+            if !isImageInUse(path) { ImageStore.shared.removeFile(path) }
+        }
+
+        emitChange(.clothingChange, action: "delete", reason: "batch")
+        return (removed.count, affectedOutfits, affectedInspirations)
+    }
+
+    /* ==================== 标签管理 ==================== */
+
+    /// 所有标签 + 各自被多少件衣物用着（按用得多的排前面，同数量按名字排）
+    func listTags() -> [TagSummary] {
+        var counter: [String: Int] = [:]
+        readClothingList().forEach { item in
+            item.tags.forEach { counter[$0, default: 0] += 1 }
+        }
+        return counter
+            .map { TagSummary(name: $0.key, count: $0.value) }
+            .sorted { a, b in
+                if a.count != b.count { return a.count > b.count }
+                return a.name.localizedCompare(b.name) == .orderedAscending
+            }
+    }
+
+    /// 标签改名：新名字已经存在时按「合并」处理。返回受影响的衣物件数
+    @discardableResult
+    func renameTag(from old: String, to rawNew: String) -> Int {
+        let target = old.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = rawNew.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !target.isEmpty, !value.isEmpty, target != value else { return 0 }
+        var list = readClothingList()
+        var changed = 0
+        for index in list.indices where list[index].tags.contains(target) {
+            var tags = list[index].tags.filter { $0 != target }
+            if !tags.contains(value) { tags.append(value) }
+            list[index].tags = tags
+            changed += 1
+        }
+        guard changed > 0 else { return 0 }
+        writeClothingList(list)
+        emitChange(.clothingChange, action: "tag", reason: "rename")
+        return changed
+    }
+
+    /// 删除标签（从所有衣物上摘掉）
+    @discardableResult
+    func deleteTag(_ name: String) -> Int {
+        let target = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !target.isEmpty else { return 0 }
+        var list = readClothingList()
+        var changed = 0
+        for index in list.indices where list[index].tags.contains(target) {
+            list[index].tags.removeAll { $0 == target }
+            changed += 1
+        }
+        guard changed > 0 else { return 0 }
+        writeClothingList(list)
+        emitChange(.clothingChange, action: "tag", reason: "delete")
+        return changed
+    }
+
+    /// 给一批衣物加同一个标签（批量为「这些衣服都适合通勤」打标）
+    @discardableResult
+    func addTagBatch(_ tag: String, ids: [String], limit: Int = ClothingLimits.maxTags) -> Int {
+        let value = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, !ids.isEmpty else { return 0 }
+        let target = Set(ids)
+        var list = readClothingList()
+        var changed = 0
+        for index in list.indices where target.contains(list[index].id) {
+            guard !list[index].tags.contains(value), list[index].tags.count < limit else { continue }
+            list[index].tags.append(value)
+            changed += 1
+        }
+        guard changed > 0 else { return 0 }
+        writeClothingList(list)
+        emitChange(.clothingChange, action: "tag", reason: "batch")
+        return changed
     }
 
     /* ==================== 穿搭 ==================== */
@@ -349,16 +683,36 @@ final class Database {
     /// 新增或更新统一入口
     @discardableResult
     func saveOutfit(_ draft: OutfitDraft) -> Outfit {
-        if !draft.id.isEmpty, let old = getOutfit(draft.id) {
-            var result: Outfit?
-            result = updateOutfit(draft.id) { outfit in
-                var next = normalize(draft, id: draft.id, createTime: old.createTime)
+        let old = draft.id.isEmpty ? nil : getOutfit(draft.id)
+        // 这套记录要不要计入穿着次数：调用方没指定就沿用原来的状态（新建时默认不计入）
+        let counted = draft.countWear ?? (old?.wearCounted ?? false)
+        var payload = draft
+        payload.countWear = counted
+
+        let saved: Outfit
+        if let old {
+            saved = updateOutfit(old.id) { outfit in
+                var next = normalize(payload, id: old.id, createTime: old.createTime)
                 next.createTime = old.createTime
                 outfit = next
-            }
-            return result ?? old
+            } ?? old
+        } else {
+            saved = addOutfit(payload)
         }
-        return addOutfit(draft)
+
+        // 记一套穿搭 = 这几件今天穿了：新加进来的 +1，被拿掉的 -1（原来就没计数的整套不动）
+        let oldIds = Set(old?.clothingIds ?? [])
+        let newIds = Set(saved.clothingIds)
+        var add: Set<String> = []
+        var remove: Set<String> = []
+        if counted {
+            add = newIds.subtracting(old?.wearCounted == true ? oldIds : [])
+        }
+        if old?.wearCounted == true {
+            remove = oldIds.subtracting(counted ? newIds : [])
+        }
+        applyWearChanges(add: add, remove: remove, date: saved.date)
+        return saved
     }
 
     /// 复制一套穿搭（试衣间的「复制」）
@@ -374,15 +728,48 @@ final class Database {
             date: date ?? outfit.date
         )
         draft.createTime = 0
+        // 复制出来的只是一套「摆法」，不代表今天真的穿了，所以不计次数、也不带当天的照片
+        draft.countWear = false
         return addOutfit(draft)
     }
 
     @discardableResult
     func deleteOutfit(_ id: String) -> Bool {
+        guard let outfit = getOutfit(id) else { return false }
         writeOutfitList(readOutfitList().filter { $0.id != id })
         indexRemove(id)
+        // 这套记录之前给衣物加过次数的话，删掉记录时一起回滚，别留下虚高的次数
+        if outfit.wearCounted {
+            applyWearChanges(add: [], remove: Set(outfit.clothingIds), date: outfit.date)
+        }
         emitChange(.outfitChange, action: "delete", id: id)
         return true
+    }
+
+    /* ==================== 穿着次数（穿搭记录带来的增减） ==================== */
+
+    /// 把「这套穿搭带来的次数变化」一次性应用到衣物上：
+    /// 读一遍、改一遍、写一遍（不要在循环里调用单件接口，那样每件都要全量落盘一次）
+    private func applyWearChanges(add: Set<String>, remove: Set<String>, date: String) {
+        guard !add.isEmpty || !remove.isEmpty else { return }
+        var list = readClothingList()
+        var changed = false
+        for index in list.indices {
+            let id = list[index].id
+            if add.contains(id) {
+                list[index].wearCount = max(0, list[index].wearCount + 1)
+                // 日期取更晚的那个：补记旧日期的穿搭不该把「最近穿着」往回拨
+                if date > list[index].lastWornDate { list[index].lastWornDate = date }
+                changed = true
+            } else if remove.contains(id) {
+                list[index].wearCount = max(0, list[index].wearCount - 1)
+                if list[index].wearCount == 0 { list[index].lastWornDate = "" }
+                changed = true
+            }
+        }
+        guard changed else { return }
+        writeClothingList(list)
+        emitChange(.clothingChange, action: "wear", reason: "outfit")
     }
 
     /* ==================== 灵感 ==================== */
@@ -698,10 +1085,27 @@ final class Database {
         if readClothingList().contains(where: { $0.coverImage == path || $0.originalImage == path }) {
             return true
         }
-        if readOutfitList().contains(where: { $0.cover == path }) {
+        if readOutfitList().contains(where: { $0.cover == path || $0.photo == path }) {
             return true
         }
         return readInspirationList().contains { $0.images.contains(path) }
+    }
+
+    /// 全部还在用的图片文件名（备份时按这个清单打包图片，不会漏也不会多带回收掉的图）
+    func allImageNames() -> [String] {
+        var names: Set<String> = []
+        readClothingList().forEach { item in
+            if !item.coverImage.isEmpty { names.insert(item.coverImage) }
+            if !item.originalImage.isEmpty { names.insert(item.originalImage) }
+        }
+        readOutfitList().forEach { outfit in
+            if !outfit.cover.isEmpty { names.insert(outfit.cover) }
+            if !outfit.photo.isEmpty { names.insert(outfit.photo) }
+        }
+        readInspirationList().forEach { item in
+            item.images.forEach { names.insert($0) }
+        }
+        return Array(names)
     }
 
     /// 按现有数据重建 id 索引，并从已有 id 里恢复自增序号，避免 id 冲突
@@ -763,6 +1167,34 @@ final class Database {
         encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
         guard let data = try? encoder.encode(exportData()) else { return "{}" }
         return String(data: data, encoding: .utf8) ?? "{}"
+    }
+
+    /// 解析一份备份 JSON（恢复备份的第一步，先解析成功再动数据）
+    func decodePayload(_ data: Data) -> ExportPayload? {
+        try? JSONDecoder().decode(ExportPayload.self, from: data)
+    }
+
+    /// 用备份里的数据整体替换本地数据（设置页「恢复备份」用）。
+    /// 图片文件由调用方负责搬（见 Utils/BackupService.swift）。
+    @discardableResult
+    func replaceAll(with payload: ExportPayload) -> Bool {
+        writeClothingList(payload.clothing)
+        writeOutfitList(payload.outfits)
+        writeInspirationList(payload.inspirations)
+        writeFolderList(payload.folders.isEmpty ? [buildDefaultFolder()] : payload.folders)
+        storage.set(.weatherLog, payload.weather)
+        storage.set(.settings, payload.settings)
+        storage.set(.wardrobeFilter, WardrobeFilter())
+        rebuildIndex()
+
+        store.settings = payload.settings
+        store.wardrobeFilter = WardrobeFilter()
+        emitChange(.clothingChange, action: "restore")
+        emitChange(.outfitChange, action: "restore")
+        emitChange(.inspirationChange, action: "restore")
+        store.bus.emit(.settingsChange, AppEventPayload(type: "settings"))
+        store.bus.emit(.wardrobeFilterChange, AppEventPayload(type: "filter"))
+        return true
     }
 
     /// 清空业务数据（图片文件由 ImageStore.clearImages 单独清理），保留自增序号
@@ -828,10 +1260,16 @@ final class Database {
         draft.note = item.note
         draft.originalImage = item.originalImage
         draft.coverImage = item.coverImage
+        draft.status = item.status
+        draft.statusDate = item.statusDate
+        draft.soldPrice = item.soldPrice == 0 ? "" : String(item.soldPrice)
         var next = normalize(draft, id: item.id, createTime: item.createTime)
         next.price = item.price
         next.wearCount = max(0, item.wearCount)
         next.lastWornDate = item.lastWornDate
+        next.status = item.status
+        next.statusDate = item.statusDate
+        next.soldPrice = item.soldPrice
         return next
     }
 
@@ -857,7 +1295,9 @@ final class Database {
             seasons: seasons,
             note: draft.note,
             date: draft.date.isEmpty ? DateUtil.today() : draft.date,
-            createTime: createTime
+            createTime: createTime,
+            photo: draft.photo,
+            wearCounted: draft.countWear ?? false
         )
     }
 
@@ -869,6 +1309,8 @@ final class Database {
         draft.seasons = outfit.seasons
         draft.note = outfit.note
         draft.date = outfit.date
+        draft.photo = outfit.photo
+        draft.countWear = outfit.wearCounted
         return normalize(draft, id: outfit.id, createTime: outfit.createTime)
     }
 }

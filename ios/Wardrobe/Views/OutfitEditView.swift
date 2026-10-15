@@ -22,6 +22,10 @@ final class OutfitEditModel: ObservableObject {
     @Published var picked: [String] = []
     @Published var items: [PickedClothing] = []
     @Published var showSelector = false
+    /// 当天的穿搭照片（抠好背景的贴图，会显示在日历里）
+    @Published var photo = ""
+    /// 保存时是否给关联衣物 +1 次穿着
+    @Published var countWear = true
 
     struct PickedClothing: Identifiable, Hashable {
         var id: String
@@ -30,11 +34,16 @@ final class OutfitEditModel: ObservableObject {
     }
 
     private var old: Outfit?
+    /// 本次新产生的图片文件；没保存成功就清掉，别留垃圾
+    private var createdFiles: [String] = []
+    private var saved = false
 
     init(outfitId: String, date: String) {
         let target = date.isEmpty ? DateUtil.today() : date
         self.date = target
         guard !outfitId.isEmpty, let outfit = Database.shared.getOutfit(outfitId) else {
+            // 新建：默认计入穿着次数（记一套穿搭 = 今天穿了这几件）
+            countWear = true
             refreshItems()
             return
         }
@@ -44,7 +53,15 @@ final class OutfitEditModel: ObservableObject {
         note = outfit.note
         seasons = outfit.seasons
         picked = outfit.clothingIds
+        photo = outfit.photo
+        countWear = outfit.wearCounted
         refreshItems()
+    }
+
+    deinit {
+        if !saved {
+            createdFiles.forEach { ImageStore.shared.removeFile($0) }
+        }
     }
 
     var isEditing: Bool { !outfitId.isEmpty }
@@ -88,6 +105,42 @@ final class OutfitEditModel: ObservableObject {
         refreshItems()
     }
 
+    /* ==================== 当天的照片 ==================== */
+
+    /// 选中的原图先落盘（编辑器要拿它当底图）
+    @discardableResult
+    func trackPickedPhoto(_ data: Data) -> String? {
+        guard let path = ImageStore.shared.saveData(data, prefix: "outfit-photo") else {
+            ToastCenter.shared.show("选图失败，请重试")
+            return nil
+        }
+        createdFiles.append(path)
+        return path
+    }
+
+    /// 抠图编辑器回传的成品
+    func applyEditedPhoto(_ path: String) {
+        if !path.isEmpty, !createdFiles.contains(path) { createdFiles.append(path) }
+        let previous = photo
+        photo = path
+        // 换掉的那张如果只是本次产生的中间文件，顺手删掉
+        if !previous.isEmpty, previous != path, createdFiles.contains(previous),
+           !Database.shared.isImageInUse(previous) {
+            ImageStore.shared.removeFile(previous)
+            createdFiles.removeAll { $0 == previous }
+        }
+        ToastCenter.shared.show("照片已就位")
+    }
+
+    func removePhoto() {
+        let previous = photo
+        photo = ""
+        if !previous.isEmpty, !Database.shared.isImageInUse(previous) {
+            ImageStore.shared.removeFile(previous)
+            createdFiles.removeAll { $0 == previous }
+        }
+    }
+
     /* ==================== 保存 ==================== */
 
     /// - Returns: 保存成功返回 true
@@ -107,10 +160,22 @@ final class OutfitEditModel: ObservableObject {
         draft.note = note
         draft.date = date
         draft.createTime = old?.createTime ?? 0
-        Database.shared.saveOutfit(draft)
+        draft.photo = photo
+        draft.countWear = countWear
+        let result = Database.shared.saveOutfit(draft)
+
+        // 换了照片 / 关联衣物后，旧图没人用了就删掉
+        let keep = [result.photo]
+        createdFiles.filter { !keep.contains($0) }.forEach { path in
+            if !Database.shared.isImageInUse(path) { ImageStore.shared.removeFile(path) }
+        }
+        createdFiles = []
+        self.saved = true
 
         Haptic.success()
-        ToastCenter.shared.show(isEditing ? "已保存" : "已记录")
+        var message = isEditing ? "已保存" : "已记录"
+        if countWear, !picked.isEmpty { message += " · 已计入穿着次数" }
+        ToastCenter.shared.show(message)
         return true
     }
 }
@@ -124,6 +189,9 @@ struct OutfitEditView: View {
     @Environment(\.floatingBarInset) private var floatingBarInset
     @Environment(\.dismiss) private var dismiss
     @State private var showDatePicker = false
+    @State private var showPhotoPicker = false
+    @State private var showPhotoEditor = false
+    @State private var photoSource = ""
 
     init(outfitId: String, date: String = "") {
         self.outfitId = outfitId
@@ -134,8 +202,10 @@ struct OutfitEditView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
+                photoCard
                 dateCard
                 clothingCard
+                wearCard
                 noteCard
                 Text("保存后可以去试衣间把这几件拖到一起，生成一张搭配封面。")
                     .font(.system(size: Theme.fontCaption))
@@ -167,6 +237,94 @@ struct OutfitEditView: View {
             DatePickerSheet(title: "日期", date: $model.date, allowClear: false, allowsFuture: true)
                 .presentationDetents([.height(320)])
         }
+        .navigationDestination(isPresented: $showPhotoEditor) {
+            ImageEditorView(source: photoSource, onDone: { path in
+                model.applyEditedPhoto(path)
+            })
+        }
+        .imagePicker(isPresented: $showPhotoPicker) { datas in
+            guard let data = datas.first, let path = model.trackPickedPhoto(data) else { return }
+            photoSource = path
+            showPhotoEditor = true
+        }
+    }
+
+    /* ==================== 当天的照片（贴到日历里的那张） ==================== */
+
+    private var photoCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 4) {
+                Text("今天的照片")
+                    .font(.system(size: Theme.fontCaption))
+                    .foregroundStyle(Theme.textSub)
+                Spacer()
+                if !model.photo.isEmpty {
+                    Button("重选") { showPhotoPicker = true }
+                        .font(.system(size: Theme.fontSmall))
+                        .foregroundStyle(Theme.primary)
+                    Button("删掉") { model.removePhoto() }
+                        .font(.system(size: Theme.fontSmall))
+                        .foregroundStyle(Theme.textSub)
+                        .padding(.leading, 10)
+                }
+            }
+            .padding(.bottom, 8)
+
+            Button {
+                if model.photo.isEmpty {
+                    showPhotoPicker = true
+                }
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous)
+                        .fill(Theme.imageWell)
+                    if model.photo.isEmpty {
+                        VStack(spacing: 6) {
+                            Image(systemName: "camera")
+                                .font(.system(size: 22, weight: .light))
+                                .foregroundStyle(Theme.textLight)
+                            Text("拍一张 / 选一张今天的穿搭")
+                                .font(.system(size: Theme.fontSmall))
+                                .foregroundStyle(Theme.textLight)
+                            Text("会自动抠掉背景，作为贴图显示在日历和日记里")
+                                .font(.system(size: Theme.fontTiny))
+                                .foregroundStyle(Theme.textLight)
+                        }
+                    } else {
+                        Theme.imageWell
+                        StoredImage(path: model.photo, mode: .fit, maxPixel: 1200, contentOnly: true)
+                    }
+                }
+                .frame(height: 190)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.radiusSM, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .cardStyle()
+    }
+
+    /* ==================== 是否计入穿着次数 ==================== */
+
+    private var wearCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: $model.countWear) {
+                Text("计入穿着次数")
+                    .font(.system(size: Theme.fontBody))
+                    .foregroundStyle(Theme.text)
+            }
+            .tint(Theme.primary)
+
+            Text(model.countWear
+                 ? "保存后，这几件各 +1 次（这次被拿掉的会 −1），单次成本跟着更新"
+                 : "只记录搭配，不改动这些衣物的穿着次数")
+                .font(.system(size: Theme.fontTiny))
+                .foregroundStyle(Theme.textLight)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .cardStyle()
+        .padding(.top, 10)
     }
 
     /* ==================== 日期 / 季节 ==================== */

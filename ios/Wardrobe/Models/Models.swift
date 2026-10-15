@@ -26,6 +26,97 @@ enum Wardrobe {
     static let outfitFolderID = "outfit"
 }
 
+/// 断舍离：一件衣物离开衣橱时的去向。
+/// 存进数据的只有 rawValue（空字符串表示还在穿），这样老数据不用迁移也能读。
+enum ReleaseMethod: String, CaseIterable, Identifiable {
+    case sold
+    case gifted
+    case discarded
+    case retired
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .sold: return "卖掉了"
+        case .gifted: return "送人了"
+        case .discarded: return "扔掉了"
+        case .retired: return "淘汰了"
+        }
+    }
+
+    /// 列表 / 标签里的短标签
+    var shortTitle: String {
+        switch self {
+        case .sold: return "已卖"
+        case .gifted: return "已送人"
+        case .discarded: return "已丢弃"
+        case .retired: return "已淘汰"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .sold: return "yensign.circle"
+        case .gifted: return "gift"
+        case .discarded: return "trash"
+        case .retired: return "archivebox"
+        }
+    }
+
+    /// 卖掉时才有「回血」金额
+    var needsPrice: Bool { self == .sold }
+}
+
+/// 一些共用的上限（表单校验和批量操作都看这里，别各写各的）
+enum ClothingLimits {
+    /// 一件衣物最多几个标签
+    static let maxTags = 10
+}
+
+/// 标签管理页里的一项：标签名 + 用它的衣物件数
+struct TagSummary: Identifiable, Hashable {
+    var name: String
+    var count: Int
+
+    var id: String { name }
+}
+
+/// 衣橱列表的排序方式（存在 WardrobeFilter 里，下次进来还是它）
+enum WardrobeSort: String, CaseIterable, Identifiable {
+    case latest
+    case lastWorn
+    case mostWorn
+    case costHigh
+    case priceHigh
+    case purchaseNew
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .latest: return "最新添加"
+        case .lastWorn: return "最近穿过"
+        case .mostWorn: return "穿得最多"
+        case .costHigh: return "单次成本高"
+        case .priceHigh: return "价格最高"
+        case .purchaseNew: return "买得最晚"
+        }
+    }
+
+    /// 排序菜单里的一句话说明
+    var note: String {
+        switch self {
+        case .latest: return "刚加进来的排前面"
+        case .lastWorn: return "最近穿过的排前面"
+        case .mostWorn: return "穿得多的排前面"
+        case .costHigh: return "每次穿越贵越靠前，找「假便宜」"
+        case .priceHigh: return "单价最高的排前面"
+        case .purchaseNew: return "按购买日期从新到旧"
+        }
+    }
+}
+
 /// 实体类型：决定 id 前缀与落库的 key（对应 db.js 的 TYPE_PREFIX / TYPE_LIST_KEY）
 enum EntityKind: String, Codable {
     case clothing
@@ -73,6 +164,12 @@ struct ClothingItem: Codable, Identifiable, Hashable {
     var lastWornDate: String
     /// 毫秒时间戳，与小程序保持一致
     var createTime: Double
+    /// 断舍离状态：空 = 还在穿；sold / gifted / discarded / retired = 已处置（见 ReleaseMethod）
+    var status: String
+    /// 处置日期（YYYY-MM-DD）
+    var statusDate: String
+    /// 卖掉时的回血金额（其它处置方式为 0）
+    var soldPrice: Double
 
     init(
         id: String,
@@ -88,7 +185,10 @@ struct ClothingItem: Codable, Identifiable, Hashable {
         note: String = "",
         wearCount: Int = 0,
         lastWornDate: String = "",
-        createTime: Double = Date().milliseconds
+        createTime: Double = Date().milliseconds,
+        status: String = "",
+        statusDate: String = "",
+        soldPrice: Double = 0
     ) {
         self.id = id
         self.name = name
@@ -104,6 +204,9 @@ struct ClothingItem: Codable, Identifiable, Hashable {
         self.wearCount = wearCount
         self.lastWornDate = lastWornDate
         self.createTime = createTime
+        self.status = status
+        self.statusDate = statusDate
+        self.soldPrice = soldPrice
     }
 
     /// 对应 db.js 的 normalizeClothing
@@ -127,6 +230,46 @@ struct ClothingItem: Codable, Identifiable, Hashable {
         wearCount = Int(c.flexDouble(.wearCount) ?? 0)
         lastWornDate = c.flexString(.lastWornDate)
         createTime = c.flexDouble(.createTime) ?? Date().milliseconds
+        let rawStatus = c.flexString(.status)
+        status = ReleaseMethod(rawValue: rawStatus)?.rawValue ?? ""
+        statusDate = c.flexString(.statusDate)
+        soldPrice = c.flexDouble(.soldPrice) ?? 0
+    }
+
+    /* ==================== 派生数据（单次成本 / 断舍离） ==================== */
+
+    /// 还在穿（没被断舍离）
+    var isActive: Bool { status.isEmpty }
+
+    /// 已经断舍离（处置掉了）
+    var isReleased: Bool { !status.isEmpty }
+
+    /// 处置方式；还在穿时为 nil
+    var releaseMethod: ReleaseMethod? { ReleaseMethod(rawValue: status) }
+
+    /// 单次成本 = 价格 ÷ 穿着次数。
+    /// 没填价格（0）或还没穿过（0 次）时没有意义，返回 nil —— 界面据此显示「—」或「还没穿过」。
+    var costPerWear: Double? {
+        guard price > 0, wearCount > 0 else { return nil }
+        return price / Double(wearCount)
+    }
+
+    /// 买了多少天（没填购买日期时为 nil）
+    var ownedDays: Int? {
+        guard !purchaseDate.isEmpty else { return nil }
+        return max(0, DateUtil.daysBetween(purchaseDate, DateUtil.today()))
+    }
+
+    /// 距离上次穿了多少天；从没穿过时返回 nil
+    var idleDays: Int? {
+        guard !lastWornDate.isEmpty else { return nil }
+        return max(0, DateUtil.daysBetween(lastWornDate, DateUtil.today()))
+    }
+
+    /// 卖掉后的净成本（买价 - 回血）
+    var netPrice: Double {
+        guard releaseMethod == .sold, soldPrice > 0 else { return price }
+        return max(0, price - soldPrice)
     }
 }
 
@@ -173,6 +316,10 @@ struct Outfit: Codable, Identifiable, Hashable {
     var note: String
     var date: String
     var createTime: Double
+    /// 当天的穿搭照片（抠好背景的贴图，透明 PNG），显示在日历里
+    var photo: String
+    /// 这套记录是否已经计入过关联衣物的穿着次数（记录穿搭时默认计入，删除 / 取消时会回滚）
+    var wearCounted: Bool
 
     init(
         id: String,
@@ -182,7 +329,9 @@ struct Outfit: Codable, Identifiable, Hashable {
         seasons: [String] = [],
         note: String = "",
         date: String = DateUtil.today(),
-        createTime: Double = Date().milliseconds
+        createTime: Double = Date().milliseconds,
+        photo: String = "",
+        wearCounted: Bool = false
     ) {
         self.id = id
         self.clothingIds = clothingIds
@@ -192,6 +341,8 @@ struct Outfit: Codable, Identifiable, Hashable {
         self.note = note
         self.date = date
         self.createTime = createTime
+        self.photo = photo
+        self.wearCounted = wearCounted
     }
 
     /// 对应 db.js 的 normalizeOutfit
@@ -210,6 +361,8 @@ struct Outfit: Codable, Identifiable, Hashable {
         let rawDate = c.flexString(.date)
         date = rawDate.isEmpty ? DateUtil.today() : rawDate
         createTime = c.flexDouble(.createTime) ?? Date().milliseconds
+        photo = c.flexString(.photo)
+        wearCounted = c.flexBool(.wearCounted) ?? false
     }
 }
 
@@ -457,10 +610,21 @@ struct AppSettings: Codable, Hashable {
     var showLastWorn: Bool
     /// 外观：system（跟随系统）/ light（浅色）/ dark（深色）
     var appearance: String
+    /// 衣橱网格每行几件（3 / 4）
+    var gridColumns: Int
+    /// 衣橱卡片上是否显示单次成本角标
+    var showCostPerWear: Bool
 
-    init(showLastWorn: Bool = true, appearance: String = "system") {
+    init(
+        showLastWorn: Bool = true,
+        appearance: String = "system",
+        gridColumns: Int = 3,
+        showCostPerWear: Bool = true
+    ) {
         self.showLastWorn = showLastWorn
         self.appearance = appearance
+        self.gridColumns = gridColumns
+        self.showCostPerWear = showCostPerWear
     }
 
     init(from decoder: Decoder) throws {
@@ -468,6 +632,9 @@ struct AppSettings: Codable, Hashable {
         showLastWorn = c.flexBool(.showLastWorn) ?? true
         let raw = c.flexString(.appearance)
         appearance = ["system", "light", "dark"].contains(raw) ? raw : "system"
+        let columns = Int(c.flexDouble(.gridColumns) ?? 3)
+        gridColumns = (columns == 4) ? 4 : 3
+        showCostPerWear = c.flexBool(.showCostPerWear) ?? true
     }
 }
 
@@ -475,11 +642,23 @@ struct WardrobeFilter: Codable, Hashable {
     var category: String
     var season: String
     var keyword: String
+    /// 排序方式（WardrobeSort 的 rawValue）
+    var sort: String
+    /// 是否把已断舍离的衣物也列出来
+    var showReleased: Bool
 
-    init(category: String = Wardrobe.all, season: String = Wardrobe.all, keyword: String = "") {
+    init(
+        category: String = Wardrobe.all,
+        season: String = Wardrobe.all,
+        keyword: String = "",
+        sort: String = WardrobeSort.latest.rawValue,
+        showReleased: Bool = false
+    ) {
         self.category = category
         self.season = season
         self.keyword = keyword
+        self.sort = sort
+        self.showReleased = showReleased
     }
 
     init(from decoder: Decoder) throws {
@@ -487,14 +666,23 @@ struct WardrobeFilter: Codable, Hashable {
         category = c.flexString(.category).isEmpty ? Wardrobe.all : c.flexString(.category)
         season = c.flexString(.season).isEmpty ? Wardrobe.all : c.flexString(.season)
         keyword = c.flexString(.keyword)
+        let rawSort = c.flexString(.sort)
+        sort = WardrobeSort(rawValue: rawSort)?.rawValue ?? WardrobeSort.latest.rawValue
+        showReleased = c.flexBool(.showReleased) ?? false
     }
 
     var isFiltering: Bool {
-        category != Wardrobe.all || season != Wardrobe.all || !keyword.trimmingCharacters(in: .whitespaces).isEmpty
+        category != Wardrobe.all || season != Wardrobe.all
+            || !keyword.trimmingCharacters(in: .whitespaces).isEmpty || showReleased
     }
 
     var isEmpty: Bool {
-        category == Wardrobe.all && season == Wardrobe.all && keyword.isEmpty
+        category == Wardrobe.all && season == Wardrobe.all && keyword.isEmpty && !showReleased
+    }
+
+    /// 当前排序方式
+    var currentSort: WardrobeSort {
+        WardrobeSort(rawValue: sort) ?? .latest
     }
 }
 

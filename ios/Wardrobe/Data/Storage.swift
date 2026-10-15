@@ -33,7 +33,10 @@ final class Storage {
     }
 
     /// 数据结构版本号，后续字段变更时在这里做迁移
-    static let schemaVersion = 1
+    ///  - v1：初始版本
+    ///  - v2：衣物加「断舍离状态 / 处置日期 / 回血金额」，穿搭加「当天照片 / 是否计入穿着次数」，
+    ///        设置加「网格列数 / 单次成本开关」，筛选加「排序 / 显示已处置」
+    static let schemaVersion = 2
 
     /// key 前缀，对应小程序里的 'wardrobe_'
     private let prefix = "wardrobe_"
@@ -115,13 +118,25 @@ final class Storage {
     /* ==================== 版本迁移 ==================== */
 
     /// 版本迁移入口：App 启动时调用一次，返回 true 表示本次做了一次迁移（首次安装也算）
+    ///
+    /// 迁移原则：新字段全部「缺失即默认」，所以老数据永远读得进来；
+    /// 这里额外把列表重新写一遍，是为了让落盘文件（以及导出的备份）里就带着新字段。
     @discardableResult
     func initSchema() -> Bool {
         let current = value(.schemaVersion, as: Int.self, default: 0)
-        if current == Storage.schemaVersion { return false }
-        // v0 -> v1：首次安装，无需迁移；后续版本变更在这里按 current 逐级升级
+        if current >= Storage.schemaVersion { return false }
+        if current >= 1 { migrateV1toV2() }
+        // current == 0：首次安装，没有老数据要迁
         set(.schemaVersion, Storage.schemaVersion)
         return true
+    }
+
+    /// v1 -> v2：新增字段都有默认值，这里只做一次「重写落盘」让文件里带上它们
+    private func migrateV1toV2() {
+        if let list = optionalValue(.clothing, as: [ClothingItem].self) { set(.clothing, list) }
+        if let list = optionalValue(.outfit, as: [Outfit].self) { set(.outfit, list) }
+        if let settings = optionalValue(.settings, as: AppSettings.self) { set(.settings, settings) }
+        if let filter = optionalValue(.wardrobeFilter, as: WardrobeFilter.self) { set(.wardrobeFilter, filter) }
     }
 
     /* ==================== 容量信息（设置页展示用） ==================== */
