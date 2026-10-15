@@ -56,16 +56,28 @@
   </view>
   <view class="hint">没配置接口时，图片编辑页的「云端抠图」会提示未配置，橡皮擦和画笔仍然可以手动处理。</view>
 
+  <!-- 天气 -->
+  <view class="section-title">天气</view>
+  <view class="card card--list">
+    <view class="cell cell--tap" bindtap="onWeatherConfig" hover-class="cell--hover">
+      <view class="cell-label cell-label--wide">天气接口 Key</view>
+      <view class="cell-value {{weatherOn ? 'cell-value--link' : 'placeholder-text'}}">
+        {{weatherOn ? '已配置 ›' : '未配置 ›'}}
+      </view>
+    </view>
+    <view class="cell">
+      <view class="cell-label cell-label--wide">最近用的城市</view>
+      <view class="cell-value {{defaultCity ? '' : 'placeholder-text'}}">{{defaultCity || '未选择'}}</view>
+    </view>
+  </view>
+  <view class="hint">日记里的天气卡片可以按城市自动获取：今天取实况、未来几天取预报、过去的日子取历史天气。没配 Key 也能手填城市、温度和天气。</view>
+
   <!-- 关于 -->
   <view class="section-title">关于</view>
   <view class="card card--list">
     <view class="cell">
       <view class="cell-label cell-label--wide">版本</view>
       <view class="cell-value">{{version}}</view>
-    </view>
-    <view class="cell cell--tap" bindtap="onOpenDocs" hover-class="cell--hover">
-      <view class="cell-label cell-label--wide">参考项目</view>
-      <view class="cell-value cell-value--link">LookLog ›</view>
     </view>
   </view>
   <view class="about">用微信小程序原生开发（WXML / WXSS / JS），数据只用 wx.setStorageSync 和本地文件系统保存。</view>

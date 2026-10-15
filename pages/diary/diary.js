@@ -4,6 +4,11 @@
  * 结构：上面是月历（有记录的日期打点），下面是选中那天的穿搭列表。
  * 一天可以有多套穿搭，每套都能单独设封面（用关联衣物的图，或从相册选一张）。
  *
+ * 天气卡片：记下那天的城市 / 温度 / 天气。
+ *  - 手填永远可用（不依赖任何接口，也能离线用）
+ *  - 配了天气接口 Key（见 utils/weather.js）后，「获取天气」会按城市自动抓：
+ *    今天取实况、未来几天取预报、过去的日子取历史天气，抓到的结果按日期存进 storage
+ *
  * 说明：
  *  - 月历网格由 utils/date.js 的 monthGrid 生成（固定 6 行 7 列，切换月份时高度不跳）
  *  - 切月份时选中日期跟着落到「该月 1 号 / 今天」，避免日历和下面的列表对不上
@@ -13,8 +18,11 @@ const db = require('../../utils/db.js');
 const store = require('../../store/global.js');
 const dateUtil = require('../../utils/date.js');
 const imageUtil = require('../../utils/image.js');
+const weatherApi = require('../../utils/weather.js');
 
 const MAX_THUMBS = 6;
+/** 手动选天气时的常用选项（接口返回的其它说法会自动补进胶囊里） */
+const WEATHER_OPTIONS = ['晴', '多云', '阴', '小雨', '中雨', '大雨', '雷阵雨', '雪', '雾', '霾'];
 
 Page({
   data: {
@@ -27,6 +35,11 @@ Page({
     outfits: [],
     totalOutfits: 0,
     totalDays: 0,
+
+    weather: { city: '', temp: '', text: '' },
+    weatherChips: [],
+    weatherSourceText: '',
+    weatherConfigured: false,
   },
 
   onLoad() {
@@ -73,6 +86,7 @@ Page({
       totalOutfits: db.listOutfits().length,
       totalDays: dates.length,
     });
+    this.loadWeather(selectedDate);
   },
 
   /** 当天穿搭 + 展示用字段（封面、衣物缩略图） */
@@ -93,6 +107,7 @@ Page({
         image: item.coverImage || item.originalImage || '',
       }));
       const firstImage = thumbs.length ? thumbs[0].image : '';
+      const seasons = outfit.seasons || [];
       return {
         id: outfit.id,
         cover: outfit.cover || firstImage,
@@ -100,7 +115,8 @@ Page({
         note: outfit.note || '',
         thumbs,
         more: Math.max(0, items.length - thumbs.length),
-        countText: items.length + ' 件衣物',
+        // 顺带把「我的搭配」里标的季节显示出来，回看时一眼知道这套属于哪一季
+        countText: items.length + ' 件衣物' + (seasons.length ? ' · ' + seasons.join('/') : ''),
       };
     });
   },
@@ -108,6 +124,235 @@ Page({
   labelOf(date) {
     const weekday = '周' + dateUtil.WEEK_LABELS[dateUtil.parseDate(date).getDay()];
     return dateUtil.friendlyDate(date) + ' · ' + weekday;
+  },
+
+  /* ==================== 天气 ==================== */
+
+  /** 把这一天的天气记录搬进 data（选中的日期变了要重新读） */
+  loadWeather(date) {
+    const record = this.withLastCity(db.getWeather(date) || {});
+    this._weather = record;
+    this.setData({
+      weather: {
+        city: record.city || '',
+        temp: record.temp || '',
+        text: record.text || '',
+      },
+      weatherChips: this.buildWeatherChips(record.text),
+      weatherSourceText: this.weatherSourceText(record),
+      weatherConfigured: weatherApi.isConfigured(),
+    });
+  },
+
+  /**
+   * 没记过城市的一天：拿上次用过的城市打个底，切到新日期点「获取天气」就能直接用。
+   * 只用于显示与取数，不落库 —— 真正记下来的是用户选过 / 抓过天气的那一次。
+   */
+  withLastCity(record) {
+    if (record.city) return record;
+    const last = weatherApi.getConfig().lastCity;
+    if (!last || !last.name) return record;
+    return Object.assign({}, record, { city: last.name, cityId: last.id || '' });
+  },
+
+  buildWeatherChips(text) {
+    // 接口给的说法如果不在常用列表里（比如「浮尘」），补一个胶囊，免得不显示
+    const options = WEATHER_OPTIONS.slice();
+    if (text && options.indexOf(text) < 0) options.push(text);
+    return options.map((value) => ({ value, active: value === text }));
+  },
+
+  weatherSourceText(record) {
+    if (!record || (!record.temp && !record.text)) return '';
+    if (record.source === 'api') {
+      return '自动获取 · ' + this.timeText(record.updateTime);
+    }
+    return '手动填写';
+  },
+
+  timeText(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return dateUtil.formatMonthDay(dateUtil.formatDate(d)) + ' ' + dateUtil.pad(d.getHours()) + ':' + dateUtil.pad(d.getMinutes());
+  },
+
+  onWeatherInput(e) {
+    const value = e.detail.value;
+    this.setData({ 'weather.temp': value });
+    this.saveWeather({ temp: String(value || '').trim() });
+  },
+
+  onWeatherTap(e) {
+    const value = e.currentTarget.dataset.value;
+    const text = value === this.data.weather.text ? '' : value;
+    this.setData({ 'weather.text': text, weatherChips: this.buildWeatherChips(text) });
+    this.saveWeather({ text });
+  },
+
+  /** 任何一次手填都算「手动填写」，并且顺手清掉上一次自动获取的信息 */
+  saveWeather(patch) {
+    const saved = db.saveWeather(
+      this.data.selectedDate,
+      Object.assign({ source: 'manual', icon: '' }, patch)
+    );
+    // 记录被清空（城市、温度、天气都没了）时留着内存里那份，接着取天气还能用上城市
+    this._weather = saved || this._weather || {};
+    this.setData({ weatherSourceText: this.weatherSourceText(this._weather) });
+  },
+
+  onPickCity() {
+    // 配了接口就搜城市（拿到城市 ID 才能自动取天气），没配就手填一个名字
+    if (weatherApi.isConfigured()) this.searchCity();
+    else this.inputCityName();
+  },
+
+  inputCityName() {
+    wx.showModal({
+      title: '城市',
+      editable: true,
+      content: this.data.weather.city || '',
+      placeholderText: '例如：杭州',
+      success: (res) => {
+        if (!res.confirm) return;
+        const name = String(res.content || '').trim();
+        this.setData({ 'weather.city': name });
+        this.saveWeather({ city: name, cityId: '' });
+      },
+    });
+  },
+
+  searchCity() {
+    wx.showModal({
+      title: '搜索城市',
+      editable: true,
+      placeholderText: '例如：杭州 / 三亚 / 京都',
+      success: (res) => {
+        if (!res.confirm) return;
+        const keyword = String(res.content || '').trim();
+        if (!keyword) return;
+
+        wx.showLoading({ title: '搜索中…', mask: true });
+        weatherApi
+          .searchCity(keyword)
+          .then((list) => {
+            wx.hideLoading();
+            if (!list.length) {
+              wx.showToast({ title: '没找到这个城市', icon: 'none' });
+              return;
+            }
+            const visible = list.slice(0, 6); // showActionSheet 最多 6 项
+            wx.showActionSheet({
+              itemList: visible.map((item) => (item.adm ? item.name + ' · ' + item.adm : item.name)),
+              success: (r) => {
+                const city = visible[r.tapIndex];
+                if (!city) return;
+                this.setData({ 'weather.city': city.name });
+                db.saveWeather(this.data.selectedDate, { city: city.name, cityId: city.id });
+                db.saveWeatherConfig({ lastCity: { id: city.id, name: city.name } });
+                this.loadWeather(this.data.selectedDate);
+                this.fetchWeather(); // 选完城市顺手把那天的天气抓回来
+              },
+              fail: () => {},
+            });
+          })
+          .catch((err) => {
+            wx.hideLoading();
+            this.showWeatherError(err);
+          });
+      },
+      fail: () => {},
+    });
+  },
+
+  /* ==================== 天气：自动获取 ==================== */
+
+  onFetchWeather() {
+    if (this._fetching) return;
+    if (!weatherApi.isConfigured()) {
+      this.askApiKey();
+      return;
+    }
+    const cityId = (this._weather && this._weather.cityId) || '';
+    if (!cityId) {
+      wx.showToast({ title: '先选一个城市', icon: 'none' });
+      this.searchCity();
+      return;
+    }
+    this.fetchWeather();
+  },
+
+  fetchWeather() {
+    const date = this.data.selectedDate;
+    const record = this._weather || db.getWeather(date) || {};
+    if (!record.cityId) return;
+
+    this._fetching = true;
+    wx.showLoading({ title: '获取天气…', mask: true });
+    weatherApi
+      .fetchByDate(record.cityId, date)
+      .then((res) => {
+        wx.hideLoading();
+        this._fetching = false;
+        db.saveWeather(date, {
+          city: record.city,
+          cityId: record.cityId,
+          temp: res.temp,
+          text: res.text,
+          icon: res.icon,
+          source: 'api',
+        });
+        this.loadWeather(date);
+        wx.showToast({
+          title: '已获取 ' + [res.text, res.temp ? res.temp + '℃' : ''].filter(Boolean).join(' '),
+          icon: 'none',
+        });
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        this._fetching = false;
+        this.showWeatherError(err);
+      });
+  },
+
+  /** 没配接口时，引导填一个 Key（也可以继续手填） */
+  askApiKey() {
+    wx.showModal({
+      title: '自动获取天气',
+      content:
+        '小程序自身没有天气数据，需要接一个第三方接口。填一个和风天气（QWeather）的免费 API Key 就能按城市自动获取；不想配也可以直接手填城市、温度和天气。',
+      confirmText: '填 Key',
+      cancelText: '先手填',
+      success: (res) => {
+        if (!res.confirm) return;
+        wx.showModal({
+          title: '和风天气 API Key',
+          editable: true,
+          placeholderText: '在 dev.qweather.com 免费申请',
+          success: (r2) => {
+            if (!r2.confirm) return;
+            const apiKey = String(r2.content || '').trim();
+            if (!apiKey) return;
+            db.saveWeatherConfig({ apiKey, enabled: true });
+            this.setData({ weatherConfigured: true });
+            wx.showToast({ title: '已保存，先选个城市', icon: 'none' });
+            this.searchCity();
+          },
+        });
+      },
+      fail: () => {},
+    });
+  },
+
+  showWeatherError(err) {
+    const message = (err && err.message) || '获取失败';
+    wx.showModal({
+      title: '没能拿到天气',
+      content:
+        message +
+        '\n\n常见原因：接口域名没加进小程序后台的「request 合法域名」、Key 不对或额度用完、该日期的历史天气不在免费额度内。拿不到也不影响记录，直接在卡片里手填即可。',
+      showCancel: false,
+      confirmText: '知道了',
+    });
   },
 
   /* ==================== 日历 ==================== */

@@ -1,7 +1,8 @@
 /* ==================== 月历 ==================== */
 
 .cal {
-  padding: 20rpx 16rpx 12rpx;
+  /* 与其它卡片一致：左右 24rpx，卡内文字统一落在 48rpx 这条竖线上 */
+  padding: 20rpx 24rpx 12rpx;
 }
 
 .cal__head {
@@ -103,7 +104,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12rpx 16rpx 4rpx;
+  padding: 12rpx 0 4rpx;
   border-top: 1rpx solid var(--border);
 }
 
@@ -130,6 +131,31 @@
   margin-top: 4rpx;
   color: var(--text-sub);
   font-size: 24rpx;
+}
+
+/* ==================== 天气卡片 ==================== */
+
+.weather {
+  padding: 8rpx 24rpx 20rpx;
+}
+
+.weather__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 0 4rpx;
+}
+
+.weather__title {
+  color: var(--text-sub);
+  font-size: 24rpx;
+  letter-spacing: 2rpx;
+}
+
+.weather__source {
+  padding: 8rpx 0 0;
+  color: var(--text-light);
+  font-size: 22rpx;
 }
 
 /* ==================== 穿搭卡片 ==================== */

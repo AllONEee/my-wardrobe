@@ -155,7 +155,7 @@
 .layerbar {
   display: flex;
   align-items: center;
-  padding: 16rpx 8rpx 8rpx;
+  padding: 16rpx 12rpx 8rpx;
 }
 
 .layerbar__name {
@@ -190,7 +190,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8rpx;
+  padding: 8rpx 12rpx;
 }
 
 .saved__title {
@@ -200,6 +200,21 @@
 
 .saved__count {
   color: var(--text-light);
+  font-size: 22rpx;
+}
+
+/* 四季分类：筛选胶囊比默认的小一号，五个刚好排一行 */
+.saved__seasons {
+  display: flex;
+  flex-wrap: wrap;
+  /* 与标题、缩略图、舞台、底部工具栏同一条竖线（页面内边距 12rpx + 12rpx） */
+  padding: 0 12rpx;
+}
+
+.saved__seasons .tag {
+  height: 44rpx;
+  margin: 0 10rpx 8rpx 0;
+  padding: 0 20rpx;
   font-size: 22rpx;
 }
 
@@ -217,10 +232,12 @@
 .saved__row {
   display: inline-flex;
   align-items: center;
-  padding: 0 8rpx;
+  padding: 0 12rpx;
 }
 
 .saved__item {
+  position: relative;
+  overflow: hidden;
   box-sizing: border-box;
   width: 132rpx;
   height: 156rpx;
@@ -249,9 +266,74 @@
 }
 
 .saved__empty {
-  padding: 28rpx 8rpx;
+  padding: 28rpx 12rpx;
   color: var(--text-light);
   font-size: 24rpx;
+}
+
+/* 缩略图左下角的季节标记 */
+.saved__badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  padding: 2rpx 12rpx;
+  border-top-right-radius: var(--radius-sm);
+  background: rgba(46, 42, 40, 0.55);
+  color: #fff;
+  font-size: 20rpx;
+  line-height: 1.6;
+}
+
+/* ==================== 设置季节弹层 ==================== */
+
+.sheet {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+}
+
+.sheet__mask {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(46, 42, 40, 0.45);
+}
+
+.sheet__panel {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  box-sizing: border-box;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--card);
+}
+
+.sheet__title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.sheet__hint {
+  margin-top: 4rpx;
+  color: var(--text-light);
+  font-size: 24rpx;
+}
+
+.sheet__btns {
+  display: flex;
+  align-items: center;
+  margin-top: 24rpx;
+}
+
+.sheet__save {
+  margin-left: 20rpx;
 }
 
 /* ==================== 灵感 ==================== */

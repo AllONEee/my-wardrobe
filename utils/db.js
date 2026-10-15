@@ -18,6 +18,8 @@ const KEYS = storage.KEYS;
 const CATEGORIES = ['上衣', '裤子', '裙子', '鞋', '配饰', '套装'];
 /** 固定季节 */
 const SEASONS = ['春', '夏', '秋', '冬'];
+/** 固定尺码（留空表示不填） */
+const SIZES = ['XS', 'S', 'M', 'L', 'XL'];
 /** 筛选项里的「全部」 */
 const ALL = '全部';
 
@@ -42,6 +44,15 @@ const TYPE_EVENT = {
 
 const DEFAULT_SETTINGS = {
   showLastWorn: true, // 衣橱卡片是否显示最近穿着日期
+};
+
+/** 天气接口配置：默认不启用，用户填了 Key 才会去请求（见 utils/weather.js） */
+const DEFAULT_WEATHER_CONFIG = {
+  enabled: false,
+  apiKey: '', // 和风天气的 Key（免费订阅即可）
+  host: '', // 留空用 utils/weather.js 里的默认地址，换服务商时改这里
+  cityHost: '',
+  lastCity: null, // { id, name }：日记页新建一条天气记录时的默认城市
 };
 
 const DEFAULT_WARDROBE_FILTER = {
@@ -124,6 +135,7 @@ function normalizeClothing(input) {
     seasons: Array.isArray(src.seasons) ? src.seasons.filter((s) => SEASONS.indexOf(s) >= 0) : [],
     purchaseDate: src.purchaseDate || '',
     price,
+    size: SIZES.indexOf(src.size) >= 0 ? src.size : '',
     note: src.note || '',
     wearCount: Number(src.wearCount) || 0,
     lastWornDate: src.lastWornDate || '',
@@ -283,6 +295,7 @@ function normalizeOutfit(input) {
     clothingIds: Array.isArray(src.clothingIds) ? src.clothingIds.filter(Boolean) : [],
     canvasData: normalizeCanvasData(src.canvasData),
     cover: src.cover || '', // 保存搭配时用 canvas 合成的封面图
+    seasons: Array.isArray(src.seasons) ? src.seasons.filter((s) => SEASONS.indexOf(s) >= 0) : [],
     note: src.note || '',
     date: src.date || dateUtil.today(),
     createTime: src.createTime || Date.now(),
@@ -290,12 +303,15 @@ function normalizeOutfit(input) {
 }
 
 /**
- * @param {{date?: string}} filter 传 date 则只返回当天的穿搭
+ * @param {{date?: string, season?: string}} filter 传 date 只返回当天；传 season 只返回标了这个季节的
  */
 function listOutfits(filter) {
   const f = filter || {};
   let list = readList(KEYS.OUTFIT);
   if (f.date) list = list.filter((item) => item.date === f.date);
+  if (f.season && f.season !== ALL) {
+    list = list.filter((item) => (item.seasons || []).indexOf(f.season) >= 0);
+  }
   return list.sort((a, b) => b.createTime - a.createTime);
 }
 
@@ -503,6 +519,47 @@ function deleteFolder(id) {
 
 /* ==================== 设置 / 衣橱筛选 ==================== */
 
+function getWeatherConfig() {
+  const saved = storage.get(KEYS.WEATHER_CONFIG, null);
+  return Object.assign({}, DEFAULT_WEATHER_CONFIG, saved && typeof saved === 'object' ? saved : {});
+}
+
+function saveWeatherConfig(patch) {
+  const next = Object.assign(getWeatherConfig(), patch || {});
+  storage.set(KEYS.WEATHER_CONFIG, next);
+  store.emit(store.EVENTS.WEATHER_CHANGE, next);
+  return next;
+}
+
+/** 全部天气记录：{ 'YYYY-MM-DD': { city, cityId, temp, text, icon, source, updateTime } } */
+function getWeatherLog() {
+  const log = storage.get(KEYS.WEATHER_LOG, {});
+  return log && typeof log === 'object' ? log : {};
+}
+
+function getWeather(date) {
+  return date ? getWeatherLog()[date] || null : null;
+}
+
+/**
+ * 记一天的天气（城市 / 温度 / 天气文本）。日期、城市、温度、天气全空就把这条删掉，
+ * 免得日记里攒一堆什么都没填的空记录。
+ */
+function saveWeather(date, patch) {
+  if (!date) return null;
+  const log = getWeatherLog();
+  const next = Object.assign({}, log[date] || {}, patch || {}, {
+    date,
+    updateTime: Date.now(),
+  });
+  const hasContent = !!(next.city || next.temp || next.text);
+  if (hasContent) log[date] = next;
+  else delete log[date];
+  storage.set(KEYS.WEATHER_LOG, log);
+  store.emit(store.EVENTS.WEATHER_CHANGE, next);
+  return hasContent ? next : null;
+}
+
 function getSettings() {
   return Object.assign({}, DEFAULT_SETTINGS, storage.get(KEYS.SETTINGS, {}));
 }
@@ -592,6 +649,7 @@ function exportData() {
     clothing: readList(KEYS.CLOTHING),
     outfits: readList(KEYS.OUTFIT),
     inspirations: readList(KEYS.INSPIRATION),
+    weather: getWeatherLog(), // 日记里的天气记录（接口 Key 属于配置，不导出）
   };
 }
 
@@ -603,6 +661,7 @@ function clearAll() {
   writeList(KEYS.OUTFIT, []);
   writeList(KEYS.INSPIRATION, []);
   writeList(KEYS.FOLDER, [buildDefaultFolder()]);
+  storage.set(KEYS.WEATHER_LOG, {});
   storage.set(KEYS.ID_INDEX, {});
   storage.set(KEYS.SETTINGS, DEFAULT_SETTINGS);
   storage.set(KEYS.WARDROBE_FILTER, DEFAULT_WARDROBE_FILTER);
@@ -618,6 +677,7 @@ function clearAll() {
 module.exports = {
   CATEGORIES,
   SEASONS,
+  SIZES,
   ALL,
   DEFAULT_FOLDER_ID,
   OUTFIT_FOLDER,
@@ -667,4 +727,10 @@ module.exports = {
   saveSettings,
   getWardrobeFilter,
   saveWardrobeFilter,
+
+  getWeatherConfig,
+  saveWeatherConfig,
+  getWeatherLog,
+  getWeather,
+  saveWeather,
 };

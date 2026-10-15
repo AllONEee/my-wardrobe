@@ -23,6 +23,7 @@ Page({
   data: {
     id: '', // 有值 = 编辑模式
     categories: db.CATEGORIES,
+    sizes: db.SIZES,
     seasonOptions: [],
     seasonCount: 0,
     form: {
@@ -32,6 +33,7 @@ Page({
       seasons: [],
       purchaseDate: '',
       price: '',
+      size: '',
       note: '',
     },
     originalImage: '',
@@ -68,6 +70,7 @@ Page({
         seasons: (item.seasons || []).slice(),
         purchaseDate: item.purchaseDate || '',
         price: item.price ? String(item.price) : '',
+        size: item.size || '',
         note: item.note || '',
       },
       seasonOptions: this.buildSeasonOptions(item.seasons),
@@ -228,6 +231,12 @@ Page({
     this.setData({ 'form.purchaseDate': '' });
   },
 
+  /** 尺码单选，再点一次取消（留空 = 不填） */
+  onSizeTap(e) {
+    const value = e.currentTarget.dataset.value;
+    this.setData({ 'form.size': value === this.data.form.size ? '' : value });
+  },
+
   /* ==================== 保存 ==================== */
 
   onSave() {
@@ -252,6 +261,7 @@ Page({
       seasons: form.seasons,
       purchaseDate: form.purchaseDate,
       price: form.price,
+      size: form.size,
       note: form.note,
       originalImage: this.data.originalImage,
       coverImage,

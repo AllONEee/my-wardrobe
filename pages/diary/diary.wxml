@@ -40,6 +40,52 @@
     <view class="btn btn--soft btn--sm" bindtap="onAdd" hover-class="btn-hover">添加穿搭</view>
   </view>
 
+  <!-- 天气：那天在哪个城市、什么天气，回看穿搭时更有画面感 -->
+  <view class="card weather">
+    <view class="weather__head">
+      <text class="weather__title">当天天气</text>
+      <text class="link" bindtap="onFetchWeather" hover-class="btn-hover">获取天气</text>
+    </view>
+
+    <view class="cell cell--tap" bindtap="onPickCity" hover-class="cell--hover">
+      <view class="cell-label">城市</view>
+      <view class="cell-value {{weather.city ? '' : 'placeholder-text'}}">{{weather.city || '选择城市'}}</view>
+      <view class="cell-arrow">›</view>
+    </view>
+
+    <view class="cell">
+      <view class="cell-label">温度</view>
+      <input
+        class="input"
+        type="digit"
+        value="{{weather.temp}}"
+        placeholder="未填写"
+        placeholder-class="placeholder-text"
+        bindinput="onWeatherInput"
+      />
+      <text class="cell-unit">℃</text>
+    </view>
+
+    <view class="cell cell--block">
+      <view class="cell-label">天气</view>
+      <view class="chips">
+        <view
+          class="tag {{item.active ? 'tag--active' : ''}}"
+          wx:for="{{weatherChips}}"
+          wx:key="value"
+          data-value="{{item.value}}"
+          bindtap="onWeatherTap"
+          hover-class="btn-hover"
+        >{{item.value}}</view>
+      </view>
+    </view>
+
+    <view class="weather__source" wx:if="{{weatherSourceText}}">{{weatherSourceText}}</view>
+    <view class="weather__source" wx:elif="{{!weatherConfigured}}">
+      手填即可；想按城市自动获取，配一个天气接口 Key（设置页或点右上角「获取天气」）
+    </view>
+  </view>
+
   <!-- 当天穿搭列表 -->
   <view class="outfits" wx:if="{{outfits.length}}">
     <view

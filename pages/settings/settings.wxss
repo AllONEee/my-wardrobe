@@ -9,14 +9,6 @@
   padding-right: 20rpx;
 }
 
-.cell--tap {
-  transition: background 0.15s ease;
-}
-
-.cell--hover {
-  background: #faf7f5;
-}
-
 .cell-value--link {
   color: var(--primary);
 }
@@ -25,15 +17,8 @@
   color: var(--danger);
 }
 
-.hint {
-  padding: 16rpx 12rpx 8rpx;
-  color: var(--text-light);
-  font-size: 22rpx;
-  line-height: 1.7;
-}
-
 .about {
-  padding: 20rpx 12rpx 40rpx;
+  padding: 20rpx 8rpx 40rpx;
   color: var(--text-light);
   font-size: 22rpx;
   line-height: 1.7;

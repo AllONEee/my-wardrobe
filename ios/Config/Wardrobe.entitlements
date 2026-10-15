@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 这里默认是空的：免费个人开发者账号不支持 WeatherKit，带上这个 entitlement 会直接签不过
+	     （报 "Provisioning profile doesn't include the com.apple.developer.weatherkit entitlement"）。
+
+	     开通方式（需要付费开发者账号）：
+	       1) developer.apple.com → Certificates, Identifiers & Profiles → Identifiers →
+	          选中当前 bundle id 对应的 App ID → Capabilities 勾上 WeatherKit → Save
+	       2) 把下面两行取消注释（或直接加回来），重新 Run
+	     不加也没关系：天气卡片可以手填城市 / 温度 / 天气，点击「获取天气」会提示需要权限。 -->
+	<!--
+	<key>com.apple.developer.weatherkit</key>
+	<true/>
+	-->
+</dict>
+</plist>

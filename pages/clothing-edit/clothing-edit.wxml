@@ -113,6 +113,20 @@
       />
       <text class="cell-unit">元</text>
     </view>
+
+    <view class="cell cell--block">
+      <view class="cell-label">尺码<text wx:if="{{form.size}}" class="cell-extra">· 再点一下取消</text></view>
+      <view class="chips">
+        <view
+          class="tag {{form.size === item ? 'tag--active' : ''}}"
+          wx:for="{{sizes}}"
+          wx:key="*this"
+          data-value="{{item}}"
+          bindtap="onSizeTap"
+          hover-class="btn-hover"
+        >{{item}}</view>
+      </view>
+    </view>
   </view>
 
   <!-- 备注 -->
@@ -122,7 +136,7 @@
       class="textarea"
       data-field="note"
       value="{{form.note}}"
-      placeholder="尺码、材质、搭配心得…"
+      placeholder="材质、版型、搭配心得…"
       placeholder-class="placeholder-text"
       maxlength="500"
       bindinput="onFieldInput"

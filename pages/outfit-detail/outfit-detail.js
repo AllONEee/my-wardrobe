@@ -18,6 +18,7 @@ Page({
     items: [],
     cover: '',
     countText: '',
+    seasonText: '',
     dateLabel: '',
     createTimeText: '',
   },
@@ -64,6 +65,7 @@ Page({
       items,
       cover: outfit.cover || firstImage,
       countText: items.length ? items.length + ' 件衣物' : '没有关联衣物',
+      seasonText: (outfit.seasons || []).join(' · '),
       dateLabel: dateUtil.friendlyDate(outfit.date),
       createTimeText: dateUtil.formatDate(new Date(outfit.createTime)),
     });

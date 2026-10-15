@@ -16,3 +16,25 @@ miniprogram_npm/
 
 # CI 导出的数据包（设置页「导出 JSON」的产物）
 exports/
+
+# ==================== iOS 版（ios/ 目录）====================
+# Xcode 每台机器、每个人的界面状态
+ios/**/xcuserdata/
+ios/**/*.xcuserdatad/
+ios/**/project.xcworkspace/xcshareddata/
+
+# 构建产物
+DerivedData/
+build/
+build-ios/
+build-sim/
+*.ipa
+*.dSYM.zip
+
+# Swift Package Manager（如果以后引入依赖）
+.build/
+.swiftpm/
+
+# CocoaPods / Carthage（如果以后引入）
+Pods/
+Carthage/Build/

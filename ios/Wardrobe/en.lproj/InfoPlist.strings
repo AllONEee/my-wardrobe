@@ -1,0 +1,3 @@
+/* 英文名：Clog（中文名是「欣欣衣橱」，写在 Config/Info.plist 里作为默认值） */
+"CFBundleDisplayName" = "Clog";
+"CFBundleName" = "Clog";

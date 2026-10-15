@@ -19,6 +19,7 @@ const EVENTS = {
   INSPIRATION_CHANGE: 'inspiration:change',
   SETTINGS_CHANGE: 'settings:change', // 参数为最新的 settings 对象
   WARDROBE_FILTER_CHANGE: 'wardrobe:filter', // 参数为最新的筛选条件
+  WEATHER_CHANGE: 'weather:change', // 日记里的天气记录 / 接口配置变了
 };
 
 /** 共享状态（由 app.js / db.js 写入） */

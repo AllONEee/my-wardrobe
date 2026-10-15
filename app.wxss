@@ -234,12 +234,37 @@ button::after {
   display: flex;
   align-items: center;
   min-height: 104rpx;
-  padding: 0 8rpx;
+  /* 行的文字与分隔线都从卡片内边距开始：分隔线本来就是整宽，文字再缩 8rpx 会像没对齐 */
+  padding: 0;
   border-bottom: 1rpx solid var(--border);
 }
 
 .cell:last-child {
   border-bottom: none;
+}
+
+/* 整行都是内容的单元格：标签在上，胶囊选项在下 */
+.cell--block {
+  display: block;
+  padding: 24rpx 0;
+}
+
+.cell--block .cell-label {
+  width: auto;
+  margin-bottom: 8rpx;
+}
+
+.cell-extra {
+  margin-left: 8rpx;
+  color: var(--text-light);
+  font-size: 22rpx;
+}
+
+/* 胶囊选项组：分类 / 季节 / 尺码 / 天气都用来着 */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 8rpx;
 }
 
 .cell-label {
@@ -279,6 +304,42 @@ button::after {
 .divider {
   height: 1rpx;
   background: var(--border);
+}
+
+/* ---------------- 共用小件：链接 / 提示 / 可点的单元格 ---------------- */
+
+.link {
+  color: var(--primary);
+  font-size: 26rpx;
+}
+
+.hint {
+  /* 与 .section-title 同一条左竖线（页面内边距 + 8rpx） */
+  padding: 16rpx 8rpx 8rpx;
+  color: var(--text-light);
+  font-size: 22rpx;
+  line-height: 1.7;
+}
+
+.cell--tap {
+  transition: background 0.15s ease;
+}
+
+.cell--hover {
+  background: #faf7f5;
+}
+
+.cell-arrow {
+  margin-left: 8rpx;
+  color: var(--text-light);
+  font-size: 30rpx;
+}
+
+.cell-unit {
+  flex: none;
+  margin-left: 8rpx;
+  color: var(--text-sub);
+  font-size: 28rpx;
 }
 
 /* ---------------- 悬浮按钮 ---------------- */

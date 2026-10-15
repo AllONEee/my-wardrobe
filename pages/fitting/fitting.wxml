@@ -77,8 +77,21 @@
     <view class="saved">
       <view class="saved__head">
         <text class="saved__title">我的搭配</text>
-        <text class="saved__count">{{outfits.length}} 套 · 长按可以删除</text>
+        <text class="saved__count">{{outfitCountText}}</text>
       </view>
+
+      <!-- 四季分类：点胶囊只看这个季节的搭配 -->
+      <view class="saved__seasons">
+        <view
+          class="tag {{outfitSeason === item ? 'tag--active' : ''}}"
+          wx:for="{{outfitSeasonChips}}"
+          wx:key="*this"
+          data-value="{{item}}"
+          bindtap="onOutfitSeasonTap"
+          hover-class="btn-hover"
+        >{{item}}</view>
+      </view>
+
       <scroll-view class="saved__scroll" scroll-x wx:if="{{outfits.length}}">
         <view class="saved__row">
           <view
@@ -92,10 +105,13 @@
           >
             <image wx:if="{{item.cover}}" class="saved__img" src="{{item.cover}}" mode="aspectFit" />
             <view wx:else class="saved__img saved__img--empty">{{item.count}} 件</view>
+            <view class="saved__badge" wx:if="{{item.seasonText}}">{{item.seasonText}}</view>
           </view>
         </view>
       </scroll-view>
-      <view wx:else class="saved__empty">还没有保存过搭配，摆好之后点「保存搭配」</view>
+      <view wx:else class="saved__empty">
+        {{hasOutfitFilter ? '这个季节还没有搭配，换个季节或者点「全部」看看' : '还没有保存过搭配，摆好之后点「保存搭配」'}}
+      </view>
     </view>
 
     <!-- 底部操作 -->
@@ -105,6 +121,33 @@
       <view class="btn btn--ghost btn--sm toolbar__gap" bindtap="onClearStage" hover-class="btn-hover">清空</view>
       <view class="btn btn--primary btn--sm toolbar__gap flex-1" bindtap="onSaveOutfit" hover-class="btn-hover">
         保存搭配
+      </view>
+    </view>
+
+    <!-- 设置季节：底部弹层，选完保存即写进这套搭配 -->
+    <view class="sheet" wx:if="{{seasonSheet.show}}">
+      <view class="sheet__mask" bindtap="onSeasonSheetClose" catchtouchmove="noop"></view>
+      <view class="sheet__panel">
+        <view class="sheet__title">这套搭配适合哪些季节？</view>
+        <view class="chips">
+          <view
+            class="tag {{item.active ? 'tag--active' : ''}}"
+            wx:for="{{seasonSheet.chips}}"
+            wx:key="value"
+            data-value="{{item.value}}"
+            bindtap="onSeasonSheetTap"
+            hover-class="btn-hover"
+          >{{item.value}}</view>
+        </view>
+        <view class="sheet__hint">可以多选；都不选表示四季都能穿</view>
+        <view class="sheet__btns">
+          <view class="btn btn--ghost btn--sm flex-1" bindtap="onSeasonSheetClose" hover-class="btn-hover">取消</view>
+          <view
+            class="btn btn--primary btn--sm flex-1 sheet__save"
+            bindtap="onSeasonSheetSave"
+            hover-class="btn-hover"
+          >保存</view>
+        </view>
       </view>
     </view>
   </block>

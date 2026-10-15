@@ -8,6 +8,22 @@
         <view class="cell-arrow">›</view>
       </view>
     </picker>
+
+    <view class="cell cell--block">
+      <view class="cell-label">
+        季节<text wx:if="{{seasonCount}}" class="cell-extra">· 已选 {{seasonCount}} 个</text>
+      </view>
+      <view class="chips">
+        <view
+          class="tag {{item.active ? 'tag--active' : ''}}"
+          wx:for="{{seasonOptions}}"
+          wx:key="value"
+          data-value="{{item.value}}"
+          bindtap="onSeasonTap"
+          hover-class="btn-hover"
+        >{{item.value}}</view>
+      </view>
+    </view>
   </view>
 
   <!-- 关联衣物 -->

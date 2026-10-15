@@ -113,11 +113,6 @@
   font-size: 24rpx;
 }
 
-.link {
-  color: var(--primary);
-  font-size: 26rpx;
-}
-
 /* ==================== 网格（每行 3 个） ==================== */
 
 .grid {

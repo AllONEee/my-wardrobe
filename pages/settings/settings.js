@@ -4,7 +4,8 @@
  * 三块内容：
  *  - 显示设置：衣橱卡片是否显示最近穿着日期（写进 storage，衣橱页订阅事件后即时生效）
  *  - 数据：导出 JSON（写成文件 / 复制到剪贴板）、清空数据、查看存储与图片占用
- *  - 关于：版本、数据说明、云端抠图接口配置
+ *  - 接口：云端抠图地址、天气接口 Key（都是「不配也能用，配了更省事」的可选项）
+ *  - 关于：版本、数据说明
  *
  * 导出的是「数据 + 图片路径清单」：图片本身在本地沙箱里，导出文件里只记路径。
  * 清空数据会连本地图片文件一起删掉，所以这里做了两次确认。
@@ -14,10 +15,10 @@ const store = require('../../store/global.js');
 const storage = require('../../utils/storage.js');
 const imageUtil = require('../../utils/image.js');
 const cutout = require('../../utils/cutout.js');
+const weatherApi = require('../../utils/weather.js');
 const dateUtil = require('../../utils/date.js');
 
 const VERSION = '1.0.0';
-const DOCS_URL = 'https://www.looklog.vip/docs/intro';
 
 Page({
   data: {
@@ -28,6 +29,8 @@ Page({
     imageText: '',
     cutoutOn: false,
     cutoutUrl: '',
+    weatherOn: false,
+    defaultCity: '',
   },
 
   onLoad() {
@@ -52,10 +55,13 @@ Page({
 
   refresh() {
     const config = cutout.getConfig();
+    const weatherConfig = weatherApi.getConfig();
     this.setData({
       settings: db.getSettings(),
       cutoutOn: cutout.isConfigured(),
       cutoutUrl: config.apiUrl || '',
+      weatherOn: weatherApi.isConfigured(),
+      defaultCity: (weatherConfig.lastCity && weatherConfig.lastCity.name) || '',
     });
     this.refreshStat();
     this.refreshStorage();
@@ -233,21 +239,39 @@ Page({
     });
   },
 
-  /* ==================== 关于 ==================== */
+  /* ==================== 天气接口配置 ==================== */
 
-  onOpenDocs() {
-    wx.setClipboardData({
-      data: DOCS_URL,
-      success: () => {
+  onWeatherConfig() {
+    const config = weatherApi.getConfig();
+    wx.showModal({
+      title: '和风天气 API Key',
+      editable: true,
+      content: config.apiKey || '',
+      placeholderText: '留空 = 关闭，在 dev.qweather.com 免费申请',
+      success: (res) => {
+        if (!res.confirm) return;
+        const apiKey = String(res.content || '').trim();
+
+        if (!apiKey) {
+          db.saveWeatherConfig({ enabled: false, apiKey: '' });
+          this.refresh();
+          wx.showToast({ title: '已关闭自动获取天气', icon: 'none' });
+          return;
+        }
+
+        db.saveWeatherConfig({ enabled: true, apiKey });
+        this.refresh();
         wx.showModal({
-          title: '参考项目',
-          content: 'LookLog 的链接已复制，粘贴到浏览器里就能打开。\n\n' + DOCS_URL,
+          title: '还差一步',
+          content:
+            '天气数据来自第三方接口，要把 devapi.qweather.com 和 geoapi.qweather.com 加到小程序后台「开发管理 → 开发设置 → 服务器域名」的 request 合法域名里，否则真机会提示域名不合法。',
           showCancel: false,
           confirmText: '知道了',
         });
       },
     });
   },
+
 });
 
 function formatSize(kb) {

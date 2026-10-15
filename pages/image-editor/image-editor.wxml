@@ -2,15 +2,20 @@
   <!-- 顶部操作 -->
   <view class="topbar">
     <view class="topbar__btn" bindtap="onCloudCutout" hover-class="btn-hover">云端抠图</view>
-    <view class="topbar__btn" bindtap="onReset" hover-class="btn-hover">重置</view>
     <view
       class="topbar__btn {{canUndo ? '' : 'topbar__btn--off'}}"
       bindtap="onUndo"
       hover-class="btn-hover"
     >撤销</view>
+    <view
+      class="topbar__btn {{canRedo ? '' : 'topbar__btn--off'}}"
+      bindtap="onRedo"
+      hover-class="btn-hover"
+    >重做</view>
+    <view class="topbar__btn" bindtap="onReset" hover-class="btn-hover">重置</view>
   </view>
 
-  <!-- 模式切换 + 笔刷粗细 -->
+  <!-- 模式切换 -->
   <view class="modes">
     <view
       class="modes__tab {{mode === 'erase' ? 'modes__tab--on' : ''}}"
@@ -27,21 +32,29 @@
       data-mode="crop"
       bindtap="onModeTap"
     >裁剪</view>
+  </view>
 
-    <view class="sizes" wx:if="{{mode !== 'crop'}}">
-      <view
-        class="sizes__dot {{brushSize === item.value ? 'sizes__dot--on' : ''}}"
-        wx:for="{{sizes}}"
-        wx:key="value"
-        data-value="{{item.value}}"
-        bindtap="onSizeTap"
-        style="width:{{item.value}}px;height:{{item.value}}px"
-      ></view>
-    </view>
+  <!-- 笔刷粗细：无级滑动调节，橡皮擦与画笔恢复共用 -->
+  <view class="sizes" wx:if="{{mode !== 'crop'}}">
+    <text class="sizes__label">笔刷</text>
+    <slider
+      class="sizes__slider"
+      min="{{brushMin}}"
+      max="{{brushMax}}"
+      step="1"
+      value="{{brushSize}}"
+      block-size="24"
+      block-color="#ffffff"
+      activeColor="#e0745e"
+      backgroundColor="#ede7e3"
+      bindchanging="onBrushChanging"
+      bindchange="onBrushChange"
+    />
+    <text class="sizes__value">{{brushText}}</text>
   </view>
 
   <!-- 画布 -->
-  <view class="stage">
+  <view class="stage {{bgPlain ? 'stage--plain' : ''}}">
     <!-- 画布节点与触摸事件都由 image-canvas 组件管，坐标仍是画布坐标系 -->
     <image-canvas
       id="editor"
@@ -52,6 +65,9 @@
       bind:touchend="onTouchEnd"
       bind:touchcancel="onTouchEnd"
     />
+
+    <!-- 白底看不出擦掉了什么，这里给个底色开关 -->
+    <view class="stage__bg" catchtap="onToggleBg">{{bgPlain ? '白底' : '棋盘格'}}</view>
 
     <!-- 裁剪框：用普通视图画，拖动时不需要重绘 canvas -->
     <view wx:if="{{cropStyle}}" class="cropbox" style="{{cropStyle}}">

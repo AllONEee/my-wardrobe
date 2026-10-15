@@ -24,6 +24,8 @@ const KEYS = {
   SETTINGS: 'settings',
   WARDROBE_FILTER: 'wardrobe_filter',
   CUTOUT_CONFIG: 'cutout_config', // 云端抠图接口配置（可在不发版的情况下替换）
+  WEATHER_CONFIG: 'weather_config', // 天气接口配置（Key / 上次用的城市）
+  WEATHER_LOG: 'weather_log', // { 'YYYY-MM-DD': { city, cityId, temp, text, ... } } 日记里的天气记录
 };
 
 /** 数据结构版本号，后续字段变更时在这里做迁移 */

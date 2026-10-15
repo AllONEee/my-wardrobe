@@ -40,6 +40,10 @@
       <view class="cell-label">价格</view>
       <view class="cell-value {{item.price ? '' : 'placeholder-text'}}">{{priceText}}</view>
     </view>
+    <view class="cell">
+      <view class="cell-label">尺码</view>
+      <view class="cell-value {{item.size ? '' : 'placeholder-text'}}">{{item.size || '未填写'}}</view>
+    </view>
   </view>
 
   <!-- 备注 -->

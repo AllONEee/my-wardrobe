@@ -21,17 +21,13 @@
   color: var(--text-light);
 }
 
-.cell-arrow {
-  margin-left: 8rpx;
-  color: var(--text-light);
-  font-size: 30rpx;
-}
-
 /* ==================== 已选衣物 ==================== */
 
 .picked {
   display: flex;
   flex-wrap: wrap;
+  /* 最后一列的 16rpx 右内边距用负边距抵消，已选衣物的右边缘才和「+ 添加衣物」齐平 */
+  margin-right: -16rpx;
   padding-top: 8rpx;
 }
 

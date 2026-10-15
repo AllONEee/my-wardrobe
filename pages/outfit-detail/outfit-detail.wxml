@@ -18,6 +18,10 @@
       <view class="cell-label">关联衣物</view>
       <view class="cell-value">{{countText}}</view>
     </view>
+    <view class="cell">
+      <view class="cell-label">季节</view>
+      <view class="cell-value {{seasonText ? '' : 'placeholder-text'}}">{{seasonText || '未设置'}}</view>
+    </view>
   </view>
 
   <!-- 备注 -->

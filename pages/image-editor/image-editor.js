@@ -3,7 +3,8 @@
  *
  * 进入方式（调用方约定）：/pages/image-editor/image-editor?src=<encodeURIComponent 后的图片路径>
  * 回传方式：this.getOpenerEventChannel().emit('done', { path, originalPath, crop })
- *          path 是 canvas 导出的临时文件路径（PNG，带透明通道），由调用方负责落盘
+ *          path 是 canvas 导出的临时文件路径（PNG，带透明通道），由调用方负责落盘；
+ *          crop 恒为整幅画面（裁剪在编辑时就生效了），保留这个字段只是为了兼容现有调用方
  *
  * 坐标系约定（这一页最容易出错的地方，统一在这里说清楚）：
  *   - 画布坐标系：canvas 元素的 CSS 像素，原点在左上角。触摸事件的 x/y 就是这个坐标系。
@@ -12,9 +13,22 @@
  *
  * 渲染方式：所有内容都在「图像坐标系」里描述，绘制前统一套一次变换（_applyTransform）：
  *   - 查看模式：dpr 变换 + 居中 + fitScale × 手势缩放 + 平移
- *   - 导出模式：把裁剪区域拉伸铺满画布，导出时再按比例还原（这样导出的图没有多余留白）
- * 撤销：ops 栈记录每一次操作（擦除/画笔是路径点，裁剪是矩形，云端抠图是上一张底图），
- *      撤销就是弹出栈顶后整体重绘，逻辑简单且不会累积误差。
+ *   - 导出模式：把要导出的区域拉伸铺满画布，导出时再按比例还原（这样导出的图没有多余留白）
+ * 撤销 / 重做：ops 栈记录每一次操作（擦除/画笔是路径点，裁剪与云端抠图是「换底图」），
+ *      撤销 = 弹出栈顶后整体重绘，重做 = 从 _redo 栈放回去，逻辑简单且不会累积误差。
+ *
+ * 裁剪是「即刻生效」的：松手就把框内画面（含已经擦/补过的部分）渲染成一张新底图，之后所有操作
+ * 都在新底图上进行 —— 用户裁剪后通常还要继续用橡皮擦抠细节，坐标与缩放手感基于裁剪后的画面才直观。
+ * 代价是每裁一次会重编码一次（长边限制在 EXPORT_MAX_SIDE，不会越裁越大），
+ * 所以裁剪这个操作里完整存了「旧底图 + 旧笔画栈 + 旧取景范围」三样，撤销就能整体回滚。
+ *
+ * 手动擦除要真能用，靠三件事（缺一个用户就会觉得「擦了没反应」）：
+ *   1) 舞台默认铺透明棋盘格：白底照 + 白底舞台，擦完和没擦长得一模一样（白底预览见 .stage--plain）
+ *   2) 画笔恢复取自最初的原图 _src：云端抠图抠多了、抠少了都能手动补回来
+ *      （_srcRect 记着当前底图对应原图的哪一块，裁剪之后涂回原图内容依然对得上）
+ *   3) 笔刷粗细按屏幕上看到的尺寸折算到图像坐标，缩放后手感一致；
+ *      粗细由一个 slider 无级调节（BRUSH_MIN ~ BRUSH_MAX 屏幕像素），
+ *      拖动中只更新显示数值（避免写回 slider.value 导致抖动），实际值存在 _brush 里立即生效
  *
  * 画布相关的事（取节点、按 dpr 定尺寸、加载图片、导出临时文件、触摸事件转发）都交给
  * components/image-canvas，这一页只负责「画什么」和手势语义。
@@ -22,28 +36,31 @@
 const cutout = require('../../utils/cutout.js');
 
 const MODE = { ERASE: 'erase', BRUSH: 'brush', CROP: 'crop' };
-const SIZE_PRESETS = [
-  { value: 8, label: '细' },
-  { value: 16, label: '中' },
-  { value: 28, label: '粗' },
-];
+// 笔刷粗细：无级调节，单位是「屏幕像素」（折算到图像坐标后缩放时手感才一致）
+const BRUSH_MIN = 4;
+const BRUSH_MAX = 112; // 最粗的档位：大区块擦除时不用来回涂
+const BRUSH_DEFAULT = 18;
 const MAX_ZOOM = 8; // 相对于「适应屏幕」的最大放大倍数
 const MIN_CROP = 24; // 裁剪框最小边长（图像坐标）
+const MIN_CROP_SCREEN = 20; // 裁剪框在屏幕上最小能有多大（屏幕像素），低于这个当手滑
 const EXPORT_MAX_SIDE = 1600; // 导出长边上限，控制文件体积
 
 const MODE_HINT = {
   [MODE.ERASE]: '手指涂抹擦掉背景，双指捏合可放大细修',
-  [MODE.BRUSH]: '涂回被擦掉的部分，双指捏合可放大细修',
-  [MODE.CROP]: '拖动框选要保留的区域，确定时按此区域导出',
+  [MODE.BRUSH]: '涂回擦掉/抠掉的部分（取自原图），双指捏合可放大细修',
+  [MODE.CROP]: '拖动框选要保留的区域，松手立刻裁剪（不满意点撤销）',
 };
 
 Page({
   data: {
     mode: MODE.ERASE,
-    sizes: SIZE_PRESETS,
-    brushSize: SIZE_PRESETS[1].value,
+    brushSize: BRUSH_DEFAULT, // 给 slider 的绑定值（只在拖动结束时写回，避免拖动中来回抖动）
+    brushText: String(BRUSH_DEFAULT), // 拖动过程中实时显示的数字
+    brushMin: BRUSH_MIN,
+    brushMax: BRUSH_MAX,
     canUndo: false,
-    hasCrop: false,
+    canRedo: false,
+    bgPlain: true, // 白底预览；擦过一笔或抠过图之后会自动切成棋盘格
     cropStyle: '',
     hint: MODE_HINT[MODE.ERASE],
     loading: true,
@@ -59,8 +76,12 @@ Page({
     }
 
     this._ops = [];
+    this._redo = [];
+    this._brush = BRUSH_DEFAULT; // 实际生效的笔刷粗细（拖动过程中就立即生效）
     this._view = { scale: 1, tx: 0, ty: 0 };
     this._basePath = src;
+    this._src = null; // 最初的原图，画笔恢复的取色来源（云端抠图换掉 _base 后仍然留着）
+    this._srcRect = null; // 当前底图对应原图里的哪一块（裁剪后跟着变，画笔恢复按它取色）
     this._stroke = null;
     this._cropStart = null;
     this._cropPreview = null;
@@ -69,6 +90,7 @@ Page({
     this._blockDraw = false;
     this._busy = false;
     this._exporting = false;
+    this._bgTouched = false; // 用户手动切过底色之后，就不自动切了
 
     this.setData({ srcPath: src });
   },
@@ -98,6 +120,8 @@ Page({
         return this.loadBase(this.data.srcPath);
       })
       .then(() => {
+        this._src = this._base; // 后面云端抠图会换掉 _base，原图必须留一份给画笔恢复
+        this._srcRect = this.fullSrcRect();
         this.recalcFit();
         this._view = { scale: 1, tx: 0, ty: 0 };
         this.setData({ loading: false });
@@ -124,6 +148,30 @@ Page({
 
   recalcFit() {
     this._fitScale = Math.min(this._cw / this._imgW, this._ch / this._imgH);
+  },
+
+  /** 原图整幅的取景范围（未裁剪时的 _srcRect 就是这个） */
+  fullSrcRect() {
+    const src = this._src || this._base;
+    return { x: 0, y: 0, w: (src && src.width) || 1, h: (src && src.height) || 1 };
+  },
+
+  /** 当前底图对应原图里的哪一块：画笔恢复按这块取色，所以裁剪之后要对得上 */
+  sourceBox() {
+    return this._srcRect || this.fullSrcRect();
+  },
+
+  /** 在图像坐标里裁 rect 之后，新的取景范围（按当前底图与原图的比例等比换算） */
+  cropSrcRect(rect) {
+    const box = this.sourceBox();
+    const sx = this._imgW ? box.w / this._imgW : 1;
+    const sy = this._imgH ? box.h / this._imgH : 1;
+    return {
+      x: box.x + rect.x * sx,
+      y: box.y + rect.y * sy,
+      w: Math.max(1, rect.w * sx),
+      h: Math.max(1, rect.h * sy),
+    };
   },
 
   /* ==================== 变换与坐标 ==================== */
@@ -230,6 +278,9 @@ Page({
 
   /**
    * 画笔恢复：把原图在被涂到的区域画回来。
+   * 注意取的是 _src（最初的原图）而不是 _base：云端抠图之后 _base 已经是抠好的透明图，
+   * 拿它当取色来源就「刷不回」被 AI 抠掉的部分了。
+   *
    * canvas 的 clip() 只能按「填充区域」裁剪、没法按描边裁剪，所以这里借一块临时画布：
    *   1) 把原图按当前变换画进临时层
    *   2) 用 destination-in + 描边路径做遮罩，只留下描边覆盖的部分
@@ -238,13 +289,17 @@ Page({
   paintBrush(ctx, op) {
     const scratch = this.getScratch();
     const sctx = scratch.getContext('2d');
+    const source = this._src || this._base;
     sctx.setTransform(1, 0, 0, 1, 0, 0);
     sctx.clearRect(0, 0, scratch.width, scratch.height);
 
     sctx.save();
     this._applyTransform(sctx);
     sctx.globalCompositeOperation = 'source-over';
-    sctx.drawImage(this._base, 0, 0, this._imgW, this._imgH);
+    // 按取景范围取色、显式给目标宽高：原图与抠图结果的像素尺寸可能不一致（部分接口只返回
+    // 低分辨率预览图），裁剪之后取景范围也跟着裁过，所以涂回的内容依然和底图对齐
+    const box = this._src ? this.sourceBox() : this.fullSrcRect();
+    sctx.drawImage(source, box.x, box.y, box.w, box.h, 0, 0, this._imgW, this._imgH);
     sctx.restore();
 
     sctx.save();
@@ -302,11 +357,18 @@ Page({
     // 双指：缩放/平移（任何模式下都可用）
     if (touches.length >= 2) {
       this.finishStroke();
-      this._cropStart = null;
+      // 框选到一半又搭上第二根手指：取消这次框选，别拿半个框去裁剪
+      if (this._cropStart || this._cropPreview) {
+        this._cropStart = null;
+        this._cropPreview = null;
+        this.setData({ cropStyle: '' });
+      }
       this.startPinch(touches);
       return;
     }
     if (this._pinching || this._blockDraw) return;
+    // 抠图 / 裁剪正在处理时别让新笔画混进来（底图马上要换，画了也会被丢掉）
+    if (this._busy) return;
 
     const t = touches[0];
     if (!t) return;
@@ -322,7 +384,7 @@ Page({
     const k = this._fitScale * this._view.scale;
     this._stroke = {
       type: this.data.mode === MODE.BRUSH ? 'brush' : 'erase',
-      width: this.data.brushSize / k,
+      width: this.currentBrush() / k,
       points: [point],
     };
   },
@@ -413,7 +475,6 @@ Page({
     this._view = { scale, tx, ty };
     this.clampView();
     this.renderAll();
-    this.syncCropStyle();
   },
 
   touchDistance(touches) {
@@ -455,31 +516,110 @@ Page({
     const rect = this._cropPreview;
     this._cropStart = null;
     this._cropPreview = null;
+    this.setData({ cropStyle: '' });
     if (!rect) return;
-    if (rect.w < MIN_CROP || rect.h < MIN_CROP) {
-      // 太小当作误触，保留上一次的裁剪状态
-      this.syncCropStyle();
+    // 裁剪立刻生效，误触的代价比从前大，所以两个角度都拦一下：
+    // 图像坐标下别太小（不然导出的是个渣），屏幕上看着也别太小（不然是手滑）
+    const k = this._fitScale * this._view.scale;
+    if (rect.w < MIN_CROP || rect.h < MIN_CROP || rect.w * k < MIN_CROP_SCREEN || rect.h * k < MIN_CROP_SCREEN) {
+      wx.showToast({ title: '框太小了，再拖大一点', icon: 'none' });
       return;
     }
-    this.pushOp({ type: 'crop', rect, prev: this.currentCropRect() });
-    this.setData({ hasCrop: true });
-    this.syncCropStyle();
+    this.applyCrop(rect);
   },
 
-  /** 当前生效的裁剪区域 = ops 里最后一个裁剪操作（并夹紧到图片范围内） */
-  currentCropRect() {
-    for (let i = this._ops.length - 1; i >= 0; i--) {
-      if (this._ops[i].type === 'crop') return this._ops[i].rect;
-    }
-    return null;
+  /**
+   * 裁剪即刻生效：把框内的画面（含已擦 / 已补的部分）渲染成一张新底图，之后一切操作都基于它。
+   * 之所以「烘」成图片而不是留个矩形到最后再导，是因为裁剪完通常还要继续用橡皮擦抠细节，
+   * 那时候坐标与缩放手感都基于裁剪后的画面才直观。
+   * 撤销需要把旧底图、旧笔画栈、旧取景范围一起还原，所以这一份状态原样存进 op 里。
+   */
+  applyCrop(rect) {
+    if (this._busy || !this._base) return;
+    this._busy = true;
+    wx.showLoading({ title: '裁剪中…', mask: true });
+
+    const prev = {
+      path: this._basePath,
+      img: this._base,
+      src: this._src,
+      srcRect: this._srcRect,
+      ops: this._ops.slice(),
+    };
+    const op = { type: 'crop', rect, prev, next: null };
+
+    this.renderRegionToFile(rect)
+      .then((path) =>
+        this._comp.createImage(path).then((img) => {
+          // 新底图 + 它的取景范围；创建好再切，失败了画面还是原来的样子
+          op.next = { path, img, srcRect: this.cropSrcRect(rect) };
+          return img;
+        })
+      )
+      .then(() => {
+        this._busy = false;
+        this._redo = [];
+        // 画面已经烘进底图：笔画栈清空，只留这次裁剪操作本身，撤销时整体回滚
+        this._ops = [op];
+        this.useBase(op.next);
+        // 裁完就能继续抠细节，所以直接切回橡皮擦
+        this.setData({ mode: MODE.ERASE, hint: MODE_HINT[MODE.ERASE] });
+        wx.hideLoading();
+        wx.showToast({ title: '已裁剪，可撤销', icon: 'none' });
+      })
+      .catch((err) => {
+        this._busy = false;
+        wx.hideLoading();
+        this.renderAll();
+        console.error('[image-editor] 裁剪失败', err);
+        wx.showToast({ title: '裁剪失败，请重试', icon: 'none' });
+      });
   },
 
-  syncCropStyle() {
-    const rect = this.currentCropRect();
-    this.setData({
-      cropStyle: rect ? this.cropStyleOf(rect) : '',
-      hasCrop: !!rect,
-    });
+  /** 切到某个底图状态（裁剪撤销 / 重做都走这里）：底图、取景范围、笔画栈一起换 */
+  useBase(state) {
+    this._basePath = state.path;
+    this._base = state.img;
+    this._imgW = state.img.width;
+    this._imgH = state.img.height;
+    if (state.src) this._src = state.src;
+    this._srcRect = state.srcRect || this.fullSrcRect();
+    if (state.ops) this._ops = state.ops.slice();
+    this.recalcFit();
+    this._view = { scale: 1, tx: 0, ty: 0 };
+    this.afterOpsChange();
+  },
+
+  /**
+   * 把图像坐标系里的某块区域渲染成一张临时 PNG（裁剪与导出都走它）。
+   * 渲染时画布会切到「导出变换」，结束后恢复成正常的查看状态。
+   */
+  renderRegionToFile(rect) {
+    const longSide = Math.max(rect.w, rect.h);
+    const ratio = longSide > EXPORT_MAX_SIDE ? EXPORT_MAX_SIDE / longSide : 1;
+    const destWidth = Math.max(1, Math.round(rect.w * ratio));
+    const destHeight = Math.max(1, Math.round(rect.h * ratio));
+
+    this.setExportTransform(rect);
+    const ctx = this._ctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+    this.paintScene(ctx);
+
+    return this._comp
+      .exportToTempFile({
+        x: 0,
+        y: 0,
+        width: this._cw,
+        height: this._ch,
+        destWidth,
+        destHeight,
+        fileType: 'png', // 擦掉的地方要保留透明通道，必须用 png
+      })
+      .then((path) => {
+        this.renderAll(); // 恢复查看状态
+        return path;
+      });
   },
 
   /* ==================== 顶部操作 ==================== */
@@ -490,24 +630,65 @@ Page({
     this.finishStroke();
     this._cropStart = null;
     this._cropPreview = null;
-    this.setData({ mode, hint: MODE_HINT[mode] });
-    this.syncCropStyle();
+    this.setData({ mode, hint: MODE_HINT[mode], cropStyle: '' });
     this.renderAll();
   },
 
-  onSizeTap(e) {
-    const value = Number(e.currentTarget.dataset.value);
-    if (value) this.setData({ brushSize: value });
+  /** 当前笔刷粗细（屏幕像素）：以内部值为准，比 data 更及时 */
+  currentBrush() {
+    return this._brush || this.data.brushSize;
+  },
+
+  clampBrush(raw) {
+    const n = Math.round(Number(raw));
+    if (isNaN(n)) return this.currentBrush();
+    return Math.max(BRUSH_MIN, Math.min(BRUSH_MAX, n));
+  },
+
+  /**
+   * 拖动中：立即生效 + 更新数字显示，但不写回 slider 的 value。
+   * 写回 value 会让 slider 被 setData 的旧值往回拽，手指快时能明显看到抖动。
+   */
+  onBrushChanging(e) {
+    const value = this.clampBrush(e.detail.value);
+    this._brush = value;
+    const text = String(value);
+    if (this.data.brushText !== text) this.setData({ brushText: text });
+  },
+
+  /** 松手：把最终值写回 data，slider 与内部值重新对齐 */
+  onBrushChange(e) {
+    const value = this.clampBrush(e.detail.value);
+    this._brush = value;
+    this.setData({ brushSize: value, brushText: String(value) });
   },
 
   pushOp(op) {
     this._ops.push(op);
-    this.setData({ canUndo: true });
+    this._redo = []; // 记录新操作后，原来的重做链就失效了
+
+    const patch = { canUndo: true, canRedo: false };
+    // 第一次擦/抠的时候自动切到棋盘格：白底照上不切，用户根本看不出擦掉了哪里
+    if (
+      !this._bgTouched &&
+      this.data.bgPlain &&
+      (op.type === 'erase' || op.type === 'brush' || op.type === 'cutout')
+    ) {
+      patch.bgPlain = false;
+    }
+    this.setData(patch);
   },
 
   onUndo() {
     if (this._busy || !this._ops.length) return;
     const op = this._ops.pop();
+    this._redo.push(op);
+
+    if (op.type === 'crop') {
+      // 裁剪把画面烘进了底图：撤销 = 换回旧底图 + 旧笔画栈 + 旧取景范围
+      this.useBase(op.prev);
+      return;
+    }
 
     if (op.type === 'cutout') {
       // 云端抠图换了底图，撤销需要把上一张图重新载入
@@ -518,22 +699,67 @@ Page({
           this._view = { scale: 1, tx: 0, ty: 0 };
           this.afterOpsChange();
         })
-        .catch(() => wx.showToast({ title: '撤销失败', icon: 'none' }));
+        .catch(() => {
+          this._redo.pop();
+          wx.showToast({ title: '撤销失败', icon: 'none' });
+        });
       return;
     }
 
     this.afterOpsChange();
   },
 
+  onRedo() {
+    if (this._busy || !this._redo.length) return;
+    const op = this._redo.pop();
+
+    if (op.type === 'crop') {
+      // 重做裁剪：换回裁剪后的底图，并把这次裁剪重新放回操作栈（这样还能再撤销）
+      this._ops = [op];
+      this.useBase(op.next);
+      return;
+    }
+
+    if (op.type === 'cutout') {
+      // 重做云端抠图：把 op.next 那张抠图结果重新载入
+      this._basePath = op.next;
+      this.loadBase(op.next)
+        .then(() => {
+          this._ops.push(op);
+          this.recalcFit();
+          this._view = { scale: 1, tx: 0, ty: 0 };
+          this.afterOpsChange();
+        })
+        .catch(() => {
+          this._redo.push(op);
+          wx.showToast({ title: '重做失败', icon: 'none' });
+        });
+      return;
+    }
+
+    this._ops.push(op);
+    this.afterOpsChange();
+  },
+
+  /** 白底 / 棋盘格切换：白底看抠图边缘更接近实物，棋盘格看透明区域更清楚 */
+  onToggleBg() {
+    this._bgTouched = true;
+    const bgPlain = !this.data.bgPlain;
+    this.setData({ bgPlain });
+    wx.showToast({ title: bgPlain ? '已切到白底' : '已切到棋盘格', icon: 'none' });
+  },
+
   afterOpsChange() {
-    this.setData({ canUndo: this._ops.length > 0 });
-    this.syncCropStyle();
+    this.setData({
+      canUndo: this._ops.length > 0,
+      canRedo: this._redo.length > 0,
+    });
     this.renderAll();
   },
 
   onReset() {
     if (this._busy) return;
-    if (!this._ops.length) {
+    if (!this._ops.length && !this._redo.length) {
       wx.showToast({ title: '还没有可重置的操作', icon: 'none' });
       return;
     }
@@ -549,10 +775,18 @@ Page({
 
   resetAll() {
     this._ops = [];
+    this._redo = [];
     this._basePath = this.data.srcPath;
-    this.setData({ canUndo: false, hasCrop: false, cropStyle: '', loading: true });
+    this.setData({
+      canUndo: false,
+      canRedo: false,
+      cropStyle: '',
+      loading: true,
+    });
     this.loadBase(this.data.srcPath)
       .then(() => {
+        this._src = this._base; // 回到最初的原图，画笔恢复的来源也跟着复位
+        this._srcRect = this.fullSrcRect();
         this.recalcFit();
         this._view = { scale: 1, tx: 0, ty: 0 };
         this.setData({ loading: false });
@@ -597,7 +831,8 @@ Page({
         const prev = this._basePath;
         return this.loadBase(res.path).then(() => {
           this._basePath = res.path;
-          this.pushOp({ type: 'cutout', prev });
+          // next 是给「重做」用的：重做云端抠图要能重新载入这张结果图
+          this.pushOp({ type: 'cutout', prev, next: res.path });
           this.recalcFit();
           this._view = { scale: 1, tx: 0, ty: 0 };
           this.afterOpsChange();
@@ -617,34 +852,15 @@ Page({
   onConfirm() {
     if (this._exporting || this._busy || !this._base) return;
 
-    const rect = this.currentCropRect() || { x: 0, y: 0, w: this._imgW, h: this._imgH };
-    const longSide = Math.max(rect.w, rect.h);
-    const ratio = longSide > EXPORT_MAX_SIDE ? EXPORT_MAX_SIDE / longSide : 1;
-    const destWidth = Math.max(1, Math.round(rect.w * ratio));
-    const destHeight = Math.max(1, Math.round(rect.h * ratio));
-
     this._exporting = true;
     wx.showLoading({ title: '生成中…', mask: true });
 
-    // 导出前把画布切成「裁剪区域铺满」的状态，导出的像素里就不会有周围留白
-    this.setExportTransform(rect);
-    const ctx = this._ctx;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
-    this.paintScene(ctx);
-
-    this._comp
-      .exportToTempFile({
-        x: 0,
-        y: 0,
-        width: this._cw,
-        height: this._ch,
-        destWidth,
-        destHeight,
-        fileType: 'png', // 擦掉的地方要保留透明通道，必须用 png
-      })
+    // 裁剪已经在编辑过程中生效了，这里把当前整幅画面导出去就行
+    const rect = { x: 0, y: 0, w: this._imgW, h: this._imgH };
+    this.renderRegionToFile(rect)
       .then((tempFilePath) => {
-        this.finishExport();
+        this._exporting = false;
+        wx.hideLoading();
         this.emitResult('done', {
           path: tempFilePath,
           originalPath: this.data.srcPath,
@@ -654,15 +870,11 @@ Page({
       })
       .catch((err) => {
         console.error('[image-editor] 导出失败', err);
-        this.finishExport();
+        this._exporting = false;
+        wx.hideLoading();
+        this.renderAll();
         wx.showToast({ title: '生成图片失败', icon: 'none' });
       });
-  },
-
-  finishExport() {
-    this._exporting = false;
-    wx.hideLoading();
-    this.renderAll(); // 恢复查看状态
   },
 
   onCancel() {

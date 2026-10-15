@@ -15,6 +15,9 @@
  * 【灵感】网格展示灵感图：点击看大图，长按进入多选 → 关联衣物 / 加备注 / 移动 / 删除。
  * 灵感图与我们自己的图片文件一一对应，删除时一起清掉。
  *
+ * 「我的搭配」列表按四季做了分类：上面一排胶囊（全部 / 春 / 夏 / 秋 / 冬）筛着看，
+ * 缩略图左下角显示已标的季节，长按某一套可以直接「设置季节」（多选，不选表示四季都能穿）。
+ *
  * 入口约定：别的页面要「在试衣间继续编辑某套搭配」时，先把 id 放进
  * store.setState({ pendingFitting: { outfitId } })，再 wx.switchTab 过来（tabBar 页不能带参数）。
  */
@@ -47,8 +50,15 @@ Page({
     selectedId: '',
     selectedName: '',
     outfits: [],
+    outfitSeason: db.ALL, // 「我的搭配」按季节筛选：全部 / 春 / 夏 / 秋 / 冬
+    outfitSeasonChips: [],
+    outfitCountText: '',
+    hasOutfitFilter: false,
     loadedOutfitId: '',
     saving: false,
+
+    /* 设置季节的弹层 */
+    seasonSheet: { show: false, outfitId: '', chips: [] },
 
     /* 灵感 */
     inspirations: [],
@@ -649,17 +659,38 @@ Page({
   /* ==================== 搭配：已保存列表 ==================== */
 
   refreshOutfits() {
-    const outfits = db.listOutfits().map((outfit) => {
+    const total = db.listOutfits().length;
+    const season = this.data.outfitSeason;
+    const filtering = !!season && season !== db.ALL;
+
+    const outfits = db.listOutfits({ season }).map((outfit) => {
       const items = db.listClothingByIds(outfit.clothingIds);
       const first = items.length ? items[0].coverImage || items[0].originalImage || '' : '';
       return {
         id: outfit.id,
         cover: outfit.cover || first,
         count: items.length,
+        seasonText: (outfit.seasons || []).join('/'),
         dateLabel: dateUtil.friendlyDate(outfit.date),
       };
     });
-    this.setData({ outfits });
+
+    this.setData({
+      outfits,
+      outfitSeasonChips: [db.ALL].concat(db.SEASONS),
+      hasOutfitFilter: filtering,
+      outfitCountText: filtering
+        ? outfits.length + ' 套 · 全部 ' + total + ' 套'
+        : outfits.length + ' 套 · 长按可以删除',
+    });
+  },
+
+  /** 「我的搭配」的四季分类：点胶囊只看那个季节，点「全部」看全部 */
+  onOutfitSeasonTap(e) {
+    const value = e.currentTarget.dataset.value;
+    if (!value || value === this.data.outfitSeason) return;
+    this.setData({ outfitSeason: value });
+    this.refreshOutfits();
   },
 
   onLoadOutfit(e) {
@@ -698,12 +729,64 @@ Page({
     const id = e.currentTarget.dataset.id;
     if (!id) return;
     wx.showActionSheet({
-      itemList: ['在画布中打开', '删除这套搭配'],
+      itemList: ['在画布中打开', '设置季节', '删除这套搭配'],
       success: (res) => {
         if (res.tapIndex === 0) this.loadOutfit(id);
+        else if (res.tapIndex === 1) this.openSeasonSheet(id);
         else this.deleteOutfit(id);
       },
       fail: () => {},
+    });
+  },
+
+  /* ==================== 搭配：四季分类 ==================== */
+
+  /** 弹层里改某一套搭配的季节（多选，不选 = 四季都能穿） */
+  openSeasonSheet(id) {
+    const outfit = db.getOutfit(id);
+    if (!outfit) return;
+    this.setData({
+      seasonSheet: {
+        show: true,
+        outfitId: id,
+        chips: this.buildSeasonChips(outfit.seasons),
+      },
+    });
+  },
+
+  buildSeasonChips(selected) {
+    const list = selected || [];
+    return db.SEASONS.map((value) => ({ value, active: list.indexOf(value) >= 0 }));
+  },
+
+  onSeasonSheetTap(e) {
+    const value = e.currentTarget.dataset.value;
+    const chips = this.data.seasonSheet.chips.map((chip) =>
+      chip.value === value ? { value: chip.value, active: !chip.active } : chip
+    );
+    this.setData({ 'seasonSheet.chips': chips });
+  },
+
+  onSeasonSheetClose() {
+    this.setData({ seasonSheet: { show: false, outfitId: '', chips: [] } });
+  },
+
+  /** 弹层遮罩上吃掉 touchmove，避免背后页面跟着滚 */
+  noop() {},
+
+  onSeasonSheetSave() {
+    const sheet = this.data.seasonSheet;
+    if (!sheet.outfitId) return;
+    const seasons = sheet.chips
+      .filter((chip) => chip.active)
+      .map((chip) => chip.value)
+      .sort((a, b) => db.SEASONS.indexOf(a) - db.SEASONS.indexOf(b));
+
+    db.updateOutfit(sheet.outfitId, { seasons });
+    this.onSeasonSheetClose();
+    wx.showToast({
+      title: seasons.length ? '已标记 ' + seasons.join('/') : '已清空季节标记',
+      icon: 'none',
     });
   },
 

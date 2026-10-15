@@ -52,28 +52,7 @@
   padding: 0 24rpx;
 }
 
-/* 整行都是内容的单元格（分类/季节/标签） */
-.cell--block {
-  display: block;
-  padding: 24rpx 8rpx;
-}
-
-.cell--block .cell-label {
-  width: auto;
-  margin-bottom: 8rpx;
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  margin-top: 8rpx;
-}
-
-.cell-extra {
-  margin-left: 8rpx;
-  color: var(--text-light);
-  font-size: 22rpx;
-}
+/* .cell--block / .chips / .cell-extra 是公共样式，见 app.wxss */
 
 .cell-clear {
   display: flex;
@@ -88,13 +67,6 @@
   color: var(--text-sub);
   font-size: 24rpx;
   line-height: 1;
-}
-
-.cell-unit {
-  flex: none;
-  margin-left: 8rpx;
-  color: var(--text-sub);
-  font-size: 28rpx;
 }
 
 .cell-label--top {
