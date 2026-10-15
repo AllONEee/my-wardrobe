@@ -253,14 +253,6 @@ struct SettingsView: View {
             // 图片占用这类信息只有回到本页时才需要重新算
             if active { model.refresh() }
         }
-        .confirmationDialog("导出 JSON", isPresented: $showExportOptions, titleVisibility: .visible) {
-            Button("导出为 JSON 文件") {
-                model.exportToFile()
-                if model.exportURL != nil { showShareSheet = true }
-            }
-            Button("复制到剪贴板") { model.copyJSON() }
-            Button("取消", role: .cancel) {}
-        }
         .sheet(isPresented: $showShareSheet) {
             if let url = model.exportURL {
                 ActivityView(items: [url])
@@ -340,6 +332,15 @@ struct SettingsView: View {
             ValueRow(label: "图片文件", value: model.imageText)
             TapRow(label: "导出 JSON", value: "导出", placeholder: "导出") {
                 showExportOptions = true
+            }
+            // 挂在被点的那一行上：系统弹层会贴着这一行弹出，而不是被摆到页面底部
+            .confirmationDialog("导出 JSON", isPresented: $showExportOptions, titleVisibility: .visible) {
+                Button("导出为 JSON 文件") {
+                    model.exportToFile()
+                    if model.exportURL != nil { showShareSheet = true }
+                }
+                Button("复制到剪贴板") { model.copyJSON() }
+                Button("取消", role: .cancel) {}
             }
             TapRow(label: "清空数据", value: "清空", placeholder: "清空", danger: true, showDivider: false) {
                 confirmClear = true

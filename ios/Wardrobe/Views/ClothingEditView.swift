@@ -213,15 +213,6 @@ struct ClothingEditView: View {
         .navigationTitle(model.isEditing ? "编辑衣物" : "添加衣物")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) { saveBar }
-        .confirmationDialog("图片", isPresented: $photoDialog, titleVisibility: .hidden) {
-            Button("重新选择图片") { showPicker = true }
-            Button("重新抠图") { openEditor(model.draft.originalImage) }
-            Button("取消", role: .cancel) {}
-        }
-        .imagePicker(isPresented: $showPicker) { datas in
-            guard let data = datas.first, let path = model.trackPickedImage(data) else { return }
-            openEditor(path)
-        }
         .navigationDestination(isPresented: $showEditor) {
             ImageEditorView(source: editorSource, onDone: { path in
                 model.applyEdited(path)
@@ -277,6 +268,17 @@ struct ClothingEditView: View {
                 .padding(.top, 8)
         }
         .cardStyle(padding: 12)
+        // 两个弹层挂在「被点的这张卡片」上（不是整页）：系统弹层以挂载点为准，
+        // 挂在整页时 iOS 26 会把它摆到页面最下边，挂在这里就会贴着照片弹。
+        .confirmationDialog("图片", isPresented: $photoDialog, titleVisibility: .hidden) {
+            Button("重新选择图片") { showPicker = true }
+            Button("重新抠图") { openEditor(model.draft.originalImage) }
+            Button("取消", role: .cancel) {}
+        }
+        .imagePicker(isPresented: $showPicker) { datas in
+            guard let data = datas.first, let path = model.trackPickedImage(data) else { return }
+            openEditor(path)
+        }
     }
 
     private func openEditor(_ source: String) {

@@ -404,35 +404,6 @@ struct DiaryView: View {
         .onChange(of: isActive) { _, active in
             if active { model.refresh() } // 从编辑页 / 详情页回来时兜底刷新一次
         }
-        .confirmationDialog("设置封面", isPresented: $coverDialog, titleVisibility: .hidden) {
-            if let id = coverTarget, !model.coverCandidates(id).isEmpty {
-                Button("用关联衣物的图片") { showClothingCoverPicker = true }
-            }
-            Button("从相册选一张") { showImagePicker = true }
-            Button("恢复默认封面") {
-                if let id = coverTarget { model.applyCover(id, cover: "") }
-            }
-            Button("取消", role: .cancel) {}
-        }
-        .confirmationDialog("选一件衣物的图片当封面", isPresented: $showClothingCoverPicker, titleVisibility: .visible) {
-            if let id = coverTarget {
-                ForEach(model.coverCandidates(id).prefix(6)) { item in
-                    Button(item.name) {
-                        let image = item.coverImage.isEmpty ? item.originalImage : item.coverImage
-                        model.applyCover(id, cover: image)
-                    }
-                }
-            }
-            Button("取消", role: .cancel) {}
-        }
-        .imagePicker(isPresented: $showImagePicker) { datas in
-            guard let id = coverTarget, let data = datas.first,
-                  let saved = ImageStore.shared.saveData(data, prefix: "outfit-cover") else {
-                ToastCenter.shared.show("选图失败，请重试")
-                return
-            }
-            model.applyCover(id, cover: saved)
-        }
         .sheet(isPresented: $showCityPicker) {
             CityPickerSheet(
                 onPick: { city in
@@ -688,6 +659,41 @@ struct DiaryView: View {
             }
         }
         .padding(.top, 12)
+        // 封面相关的两个弹层都由「卡片上的设置封面按钮」触发：挂到卡片列表这一块上，
+        // 系统弹层就会贴着它弹，而不是被摆到页面最下边（iOS 26 的气泡按挂载点定位）
+        .confirmationDialog("设置封面", isPresented: $coverDialog, titleVisibility: .hidden) {
+            if let id = coverTarget, !model.coverCandidates(id).isEmpty {
+                Button("用关联衣物的图片") { showClothingCoverPicker = true }
+            }
+            Button("从相册选一张") { showImagePicker = true }
+            Button("恢复默认封面") {
+                if let id = coverTarget { model.applyCover(id, cover: "") }
+            }
+            Button("取消", role: .cancel) {}
+        }
+        .confirmationDialog(
+            "选一件衣物的图片当封面",
+            isPresented: $showClothingCoverPicker,
+            titleVisibility: .visible
+        ) {
+            if let id = coverTarget {
+                ForEach(model.coverCandidates(id).prefix(6)) { item in
+                    Button(item.name) {
+                        let image = item.coverImage.isEmpty ? item.originalImage : item.coverImage
+                        model.applyCover(id, cover: image)
+                    }
+                }
+            }
+            Button("取消", role: .cancel) {}
+        }
+        .imagePicker(isPresented: $showImagePicker) { datas in
+            guard let id = coverTarget, let data = datas.first,
+                  let saved = ImageStore.shared.saveData(data, prefix: "outfit-cover") else {
+                ToastCenter.shared.show("选图失败，请重试")
+                return
+            }
+            model.applyCover(id, cover: saved)
+        }
     }
 
     private func outfitCard(_ row: DiaryOutfitRow) -> some View {

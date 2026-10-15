@@ -13,6 +13,8 @@ struct StoredImage: View {
     var mode: ContentMode = .fit
     /// 下采样长边（网格里的缩略图给小一点，省内存）
     var maxPixel: Int = 900
+    /// 抠完的图四周可能有整片透明：true 时只显示有内容的那块（衣服撑满框，定位框也不会虚大）
+    var contentOnly: Bool = false
 
     @State private var image: UIImage?
 
@@ -31,7 +33,7 @@ struct StoredImage: View {
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
-        .task(id: "\(path)#\(maxPixel)") {
+        .task(id: "\(path)#\(maxPixel)#\(contentOnly)") {
             await load()
         }
     }
@@ -41,13 +43,18 @@ struct StoredImage: View {
             image = nil
             return
         }
-        if let cached = ImageCache.shared.image(at: url, maxPixelSize: maxPixel) {
+        let cacheHit = contentOnly
+            ? ImageStore.shared.contentImage(for: path, maxPixelSize: maxPixel)
+            : ImageCache.shared.image(at: url, maxPixelSize: maxPixel)
+        if let cached = cacheHit {
             image = cached
             return
         }
         let loaded: UIImage? = await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
-                let result = ImageCache.shared.image(at: url, maxPixelSize: maxPixel)
+                let result = contentOnly
+                    ? ImageStore.shared.contentImage(for: path, maxPixelSize: maxPixel)
+                    : ImageCache.shared.image(at: url, maxPixelSize: maxPixel)
                 continuation.resume(returning: result)
             }
         }

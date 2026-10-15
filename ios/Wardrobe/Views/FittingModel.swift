@@ -259,8 +259,13 @@ final class FittingModel: ObservableObject {
     }
 
     /// 图片尺寸（按文件名缓存）
+    /// 抠完的图四周常常是整片透明：按「有内容的那块」量，定位框才不会比衣服大一圈。
     private func dimsOf(_ image: String) -> CGSize {
         if let cached = imageDims[image] { return cached }
+        if let size = ImageStore.shared.contentImage(for: image, maxPixelSize: 400)?.size, size.width > 0 {
+            imageDims[image] = size
+            return size
+        }
         guard !image.isEmpty,
               let url = ImageStore.shared.url(for: image),
               let loaded = ImageCache.shared.image(at: url, maxPixelSize: 400) else {

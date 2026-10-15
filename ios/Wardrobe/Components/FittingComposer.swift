@@ -26,7 +26,8 @@ enum FittingComposer {
         let image = UIGraphicsImageRenderer(size: size, format: format).image { renderer in
             let context = renderer.cgContext
             for layer in layers.sorted(by: { $0.z < $1.z }) {
-                guard let source = ImageStore.shared.image(for: layer.image, maxPixelSize: 1200) else { continue }
+                // 和画布上一致：只画有内容的那块（layer.w/h 也是按这块量的）
+                guard let source = ImageStore.shared.contentImage(for: layer.image, maxPixelSize: 1200) else { continue }
                 context.saveGState()
                 context.translateBy(x: layer.center.x * ratio, y: layer.center.y * ratio)
                 context.rotate(by: layer.rotation * .pi / 180)

@@ -88,28 +88,6 @@ struct FittingView: View {
         ) { value in
             model.saveNote(value)
         }
-        .confirmationDialog(
-            actionFolder?.name ?? "",
-            isPresented: Binding(
-                get: { actionFolder != nil },
-                set: { if !$0 { actionFolder = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            if let folder = actionFolder {
-                Button("重命名") { renameTarget = folder }
-                Button("删除文件夹", role: .destructive) { model.deleteFolder(folder.id) }
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("删除文件夹后，里面的灵感会移到默认文件夹，灵感图本身不会被删掉。")
-        }
-        .confirmationDialog("移动到哪里", isPresented: $showMoveOptions, titleVisibility: .visible) {
-            ForEach(model.moveCandidates()) { folder in
-                Button(folder.name) { model.moveInspirations(to: folder) }
-            }
-            Button("取消", role: .cancel) {}
-        }
         .alert("清空画布", isPresented: $confirmClearStage) {
             Button("取消", role: .cancel) {}
             Button("清空", role: .destructive) { model.clearStage() }
@@ -127,9 +105,6 @@ struct FittingView: View {
             Button("删除", role: .destructive) { model.deleteInspirations() }
         } message: {
             Text("会同时删掉选中的灵感及其图片，不可恢复。")
-        }
-        .imagePicker(isPresented: $showImportPicker, maxSelection: FittingModel.maxImport) { datas in
-            model.importImages(datas)
         }
         .fullScreenCover(
             isPresented: Binding(
@@ -204,6 +179,23 @@ struct FittingView: View {
                 }
             }
             .padding(.vertical, 6)
+        }
+        // 文件夹的「重命名 / 删除」是长按文件夹胶囊弹出来的：挂在胶囊这一行上，弹层就贴着它弹
+        .confirmationDialog(
+            actionFolder?.name ?? "",
+            isPresented: Binding(
+                get: { actionFolder != nil },
+                set: { if !$0 { actionFolder = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let folder = actionFolder {
+                Button("重命名") { renameTarget = folder }
+                Button("删除文件夹", role: .destructive) { model.deleteFolder(folder.id) }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("删除文件夹后，里面的灵感会移到默认文件夹，灵感图本身不会被删掉。")
         }
     }
 
@@ -380,6 +372,11 @@ struct FittingView: View {
                 .padding(.horizontal, 4)
             }
         }
+        // 导入图片的两个入口（标题右侧的「+ 导入图片」和空态里的按钮）都长在这一块上：
+        // 弹层挂在这一块，系统就会贴着它弹，而不是被摆到页面最下边
+        .imagePicker(isPresented: $showImportPicker, maxSelection: FittingModel.maxImport) { datas in
+            model.importImages(datas)
+        }
     }
 
     private func inspirationCell(_ row: InspirationRow) -> some View {
@@ -500,6 +497,13 @@ struct FittingView: View {
             .padding(.vertical, 8)
         }
         .background(Theme.card)
+        // 「移动到哪里」由这一栏的「移动」按钮触发：挂在操作栏上，弹层就贴着它弹
+        .confirmationDialog("移动到哪里", isPresented: $showMoveOptions, titleVisibility: .visible) {
+            ForEach(model.moveCandidates()) { folder in
+                Button(folder.name) { model.moveInspirations(to: folder) }
+            }
+            Button("取消", role: .cancel) {}
+        }
     }
 
     /* ==================== 设置季节弹层 ==================== */

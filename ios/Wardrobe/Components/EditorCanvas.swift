@@ -44,6 +44,9 @@ final class EditorCanvas: UIView {
     private var renderer: EditorRenderer?
     private var sourceStored = ""
     private var sourceImage: CGImage?
+    /// 当前底图里「有内容」的那块（衣服的外接矩形，图像坐标）。
+    /// 画面按它来缩放：抠完的图四周是整片透明时，衣服也能撑满画布、涂抹更精确。
+    private var contentBox: CGRect = .zero
 
     private var fitScale: CGFloat = 1
     private var viewScale: CGFloat = 1
@@ -126,6 +129,7 @@ final class EditorCanvas: UIView {
         viewScale = 1
         offset = .zero
         firstEditReported = false
+        refreshContentBox()
         recalcFit()
         refresh()
         emitState(loading: false)
@@ -147,6 +151,7 @@ final class EditorCanvas: UIView {
         renderer.resetToSource(stored: sourceStored, image: sourceImage)
         viewScale = 1
         offset = .zero
+        refreshContentBox()
         recalcFit()
         refresh()
     }
@@ -172,6 +177,7 @@ final class EditorCanvas: UIView {
         guard renderer.replaceBase(stored: stored, base: cgImage, sourceBox: sourceBox) else { return false }
         viewScale = 1
         offset = .zero
+        refreshContentBox()
         recalcFit()
         refresh()
         return true
@@ -197,7 +203,10 @@ final class EditorCanvas: UIView {
 
     /// 导出 PNG（带透明通道）并落盘，返回文件名
     func exportPNG() -> String? {
-        guard let renderer, let image = renderer.compositeImage() else { return nil }
+        guard let renderer, let composite = renderer.compositeImage() else { return nil }
+        // 抠图结果保留的是原图尺寸，衣服通常只占中间一块：存之前按内容外接矩形裁一刀，
+        // 不然会「衣服小、定位框大」（试衣间里最难摆），衣柜卡片上的衣服也显小。
+        let image = ImageStore.cropToContent(composite) ?? composite
         let longSide = CGFloat(max(image.width, image.height))
         let uiImage: UIImage
         if longSide > EditorCanvas.exportMaxSide {
@@ -256,9 +265,20 @@ final class EditorCanvas: UIView {
 
     /// 图像适应画布（对应 recalcFit）
     private func recalcFit() {
-        guard let size = renderer?.imageSize, size.width > 0, size.height > 0,
+        guard let full = renderer?.imageSize, full.width > 0, full.height > 0,
               bounds.width > 0, bounds.height > 0 else { return }
+        // 有内容范围就按它来适应画面（衣服撑满画布），否则退回整张图
+        let size = contentBox.isEmpty ? full : contentBox.size
         fitScale = min(bounds.width / size.width, bounds.height / size.height)
+    }
+
+    /// 重新量一下底图里衣服的范围（换底图 / 重置 / 裁剪之后调用）
+    private func refreshContentBox() {
+        guard let base = renderer?.base else {
+            contentBox = .zero
+            return
+        }
+        contentBox = ImageStore.contentRect(of: base) ?? .zero
     }
 
     private func updateImageFrame() {
@@ -552,6 +572,7 @@ final class EditorCanvas: UIView {
             reportFirstEdit()
             viewScale = 1
             offset = .zero
+            refreshContentBox()
             recalcFit()
             refresh()
             onMessage?("已裁剪，可撤销")
@@ -572,6 +593,7 @@ final class EditorCanvas: UIView {
         case .rebase:
             viewScale = 1
             offset = .zero
+            refreshContentBox()
             recalcFit()
             refresh()
         }

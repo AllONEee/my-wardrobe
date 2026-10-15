@@ -166,6 +166,148 @@ final class ImageStore {
         return try? Data(contentsOf: url)
     }
 
+    /* ==================== 内容范围（抠完的图四周常有一整片透明） ====================
+     抠图结果保留了原图尺寸，衣服往往只占中间一块：
+     存下去会让试衣间里的定位框比衣服大一圈、卡片里的衣服也显小。
+     这里量出「真正有内容」的外接矩形，按需裁紧。
+     */
+
+    private let contentLock = NSLock()
+    private var contentRects: [String: CGRect] = [:]
+
+    /// 不透明像素的外接矩形（像素坐标，左上角为原点）。
+    /// 整张都有内容 / 空图 / 内容小得离谱时返回 nil，表示「不用裁」。
+    static func contentRect(of cgImage: CGImage) -> CGRect? {
+        let width = cgImage.width
+        let height = cgImage.height
+        guard width > 8, height > 8 else { return nil }
+
+        let bytesPerRow = width * 4
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: bytesPerRow,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.interpolationQuality = .low
+        // 不翻转：缓冲区第 0 行就是图片最上面一行（与裁剪坐标一致）
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        guard let raw = context.data else { return nil }
+        let pixels = raw.bindMemory(to: UInt8.self, capacity: bytesPerRow * height)
+        let threshold: UInt8 = 8
+
+        func rowHasContent(_ y: Int) -> Bool {
+            let base = y * bytesPerRow
+            var x = 0
+            while x < width {
+                if pixels[base + x * 4 + 3] > threshold { return true }
+                x += 1
+            }
+            return false
+        }
+
+        func columnHasContent(_ x: Int, top: Int, bottom: Int) -> Bool {
+            var y = top
+            while y <= bottom {
+                if pixels[y * bytesPerRow + x * 4 + 3] > threshold { return true }
+                y += 1
+            }
+            return false
+        }
+
+        var top = -1
+        var y = 0
+        while y < height {
+            if rowHasContent(y) { top = y; break }
+            y += 1
+        }
+        guard top >= 0 else { return nil }
+
+        var bottom = top
+        y = height - 1
+        while y > top {
+            if rowHasContent(y) { bottom = y; break }
+            y -= 1
+        }
+
+        var left = -1
+        var x = 0
+        while x < width {
+            if columnHasContent(x, top: top, bottom: bottom) { left = x; break }
+            x += 1
+        }
+        guard left >= 0 else { return nil }
+
+        var right = left
+        x = width - 1
+        while x > left {
+            if columnHasContent(x, top: top, bottom: bottom) { right = x; break }
+            x -= 1
+        }
+
+        // 四周本来就没有多余空白（几乎整张都是内容）时不用裁
+        guard right - left < width - 2 || bottom - top < height - 2 else { return nil }
+        let rect = CGRect(x: left, y: top, width: right - left + 1, height: bottom - top + 1)
+        // 内容小到不足 1% 基本是异常图（或者只剩一个杂点），不裁更安全
+        guard rect.width * rect.height >= CGFloat(width * height) / 100 else { return nil }
+        return rect
+    }
+
+    /// 裁到内容范围，外面留一点点边（默认 2%，避免把抗锯齿边缘切掉）
+    static func cropToContent(_ cgImage: CGImage, paddingRatio: CGFloat = 0.02) -> CGImage? {
+        guard let content = contentRect(of: cgImage) else { return nil }
+        let pad = max(2, (CGFloat(max(cgImage.width, cgImage.height)) * paddingRatio).rounded())
+        let bounds = CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height)
+        let rect = content.insetBy(dx: -pad, dy: -pad).intersection(bounds).integral
+        guard rect.width >= 1, rect.height >= 1 else { return nil }
+        guard rect.width < CGFloat(cgImage.width) || rect.height < CGFloat(cgImage.height) else { return nil }
+        return cgImage.cropping(to: rect)
+    }
+
+    /// 按文件名量内容范围（带缓存）
+    func contentRect(for stored: String, maxPixelSize: Int = 600) -> CGRect? {
+        guard !stored.isEmpty, let url = url(for: stored) else { return nil }
+        let key = "\(url.lastPathComponent)#\(maxPixelSize)"
+        contentLock.lock()
+        let cached = contentRects[key]
+        contentLock.unlock()
+        if let cached { return cached.isEmpty ? nil : cached }
+
+        guard let image = ImageCache.shared.image(at: url, maxPixelSize: maxPixelSize),
+              let cgImage = image.cgImage,
+              let rect = Self.contentRect(of: cgImage) else {
+            contentLock.lock()
+            contentRects[key] = .zero
+            contentLock.unlock()
+            return nil
+        }
+        contentLock.lock()
+        contentRects[key] = rect
+        contentLock.unlock()
+        return rect
+    }
+
+    /// 「只保留有内容那块」的图（量尺寸、画到画布上都用它，保证比例一致）
+    func contentImage(for stored: String, maxPixelSize: Int = 600) -> UIImage? {
+        guard let url = url(for: stored),
+              let image = ImageCache.shared.image(at: url, maxPixelSize: maxPixelSize) else { return nil }
+        guard let cgImage = image.cgImage, let cropped = Self.cropToContent(cgImage, paddingRatio: 0) else {
+            return image
+        }
+        return UIImage(cgImage: cropped, scale: image.scale, orientation: image.imageOrientation)
+    }
+
+    /// 只保留内容那块之后的显示尺寸
+    func contentSize(for stored: String, maxPixelSize: Int = 600) -> CGSize {
+        if let cropped = contentImage(for: stored, maxPixelSize: maxPixelSize) {
+            return cropped.size
+        }
+        return .zero
+    }
+
     /* ==================== 删除 ==================== */
 
     /// 只删除我们自己沙箱里的图片，其它路径一律忽略（避免误删系统临时文件）
@@ -175,6 +317,7 @@ final class ImageStore {
         do {
             try FileManager.default.removeItem(at: url)
             ImageCache.shared.remove(url)
+            forgetContentCache()
             return true
         } catch {
             print("[image] 删除失败：\(url.path) \(error)")
@@ -191,7 +334,14 @@ final class ImageStore {
     func clearImages() -> Bool {
         try? FileManager.default.removeItem(at: imagesDirectory)
         ImageCache.shared.removeAll()
+        forgetContentCache()
         return ensureDir(imagesDirectory)
+    }
+
+    private func forgetContentCache() {
+        contentLock.lock()
+        contentRects.removeAll()
+        contentLock.unlock()
     }
 
     /// 已保存图片的数量与总大小（KB），设置页展示用

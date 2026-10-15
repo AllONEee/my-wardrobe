@@ -27,7 +27,7 @@ struct ClothingCard: View {
                         .font(.system(size: Theme.fontTiny))
                         .foregroundStyle(Theme.textLight)
                 } else {
-                    StoredImage(path: image, mode: .fit, maxPixel: 600)
+                    StoredImage(path: image, mode: .fit, maxPixel: 600, contentOnly: true)
                 }
                 if showWearCount && item.wearCount > 0 {
                     VStack {

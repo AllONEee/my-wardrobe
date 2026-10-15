@@ -47,7 +47,8 @@ struct FittingStageView: View {
 
     private func layerView(_ layer: FittingLayer) -> some View {
         ZStack {
-            StoredImage(path: layer.image, mode: .fit, maxPixel: 600)
+            // 只画有内容的那块：和 sizeOf 量出来的比例一致，衣服才会正好撑满定位框
+            StoredImage(path: layer.image, mode: .fit, maxPixel: 600, contentOnly: true)
 
             if layer.selected {
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
