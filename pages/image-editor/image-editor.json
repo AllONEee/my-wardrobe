@@ -1,4 +1,5 @@
 {
-  "navigationBarTitleText": "图片编辑",
+  "navigationBarTitleText": "抠图",
+  "disableScroll": true,
   "usingComponents": {}
 }

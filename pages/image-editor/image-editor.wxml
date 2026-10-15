@@ -1,6 +1,73 @@
-<view class="page">
-  <view class="placeholder">
-    <view class="placeholder__title">图片编辑（抠图） · 占位</view>
-    <view class="placeholder__desc">第 5 步实现。</view>
+<view class="editor">
+  <!-- 顶部操作 -->
+  <view class="topbar">
+    <view class="topbar__btn" bindtap="onCloudCutout" hover-class="btn-hover">云端抠图</view>
+    <view class="topbar__btn" bindtap="onReset" hover-class="btn-hover">重置</view>
+    <view
+      class="topbar__btn {{canUndo ? '' : 'topbar__btn--off'}}"
+      bindtap="onUndo"
+      hover-class="btn-hover"
+    >撤销</view>
+  </view>
+
+  <!-- 模式切换 + 笔刷粗细 -->
+  <view class="modes">
+    <view
+      class="modes__tab {{mode === 'erase' ? 'modes__tab--on' : ''}}"
+      data-mode="erase"
+      bindtap="onModeTap"
+    >橡皮擦</view>
+    <view
+      class="modes__tab {{mode === 'brush' ? 'modes__tab--on' : ''}}"
+      data-mode="brush"
+      bindtap="onModeTap"
+    >画笔恢复</view>
+    <view
+      class="modes__tab {{mode === 'crop' ? 'modes__tab--on' : ''}}"
+      data-mode="crop"
+      bindtap="onModeTap"
+    >裁剪</view>
+
+    <view class="sizes" wx:if="{{mode !== 'crop'}}">
+      <view
+        class="sizes__dot {{brushSize === item.value ? 'sizes__dot--on' : ''}}"
+        wx:for="{{sizes}}"
+        wx:key="value"
+        data-value="{{item.value}}"
+        bindtap="onSizeTap"
+        style="width:{{item.value}}px;height:{{item.value}}px"
+      ></view>
+    </view>
+  </view>
+
+  <!-- 画布 -->
+  <view class="stage">
+    <canvas
+      type="2d"
+      id="editor"
+      class="stage__canvas"
+      bindtouchstart="onTouchStart"
+      bindtouchmove="onTouchMove"
+      bindtouchend="onTouchEnd"
+      bindtouchcancel="onTouchEnd"
+    ></canvas>
+
+    <!-- 裁剪框：用普通视图画，拖动时不需要重绘 canvas -->
+    <view wx:if="{{cropStyle}}" class="cropbox" style="{{cropStyle}}">
+      <view class="cropbox__corner cropbox__corner--tl"></view>
+      <view class="cropbox__corner cropbox__corner--tr"></view>
+      <view class="cropbox__corner cropbox__corner--bl"></view>
+      <view class="cropbox__corner cropbox__corner--br"></view>
+    </view>
+
+    <view wx:if="{{loading}}" class="stage__loading">图片加载中…</view>
+  </view>
+
+  <view class="hint">{{hint}}</view>
+
+  <!-- 底部：确定 / 取消 -->
+  <view class="bottom">
+    <view class="bottom__btn" bindtap="onCancel" hover-class="btn-hover">取消</view>
+    <view class="bottom__btn bottom__btn--primary" bindtap="onConfirm" hover-class="btn-hover">确定</view>
   </view>
 </view>

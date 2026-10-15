@@ -1,1 +1,187 @@
-/* pages/image-editor/image-editor.wxss */
+page {
+  overflow: hidden;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100vh;
+  background: var(--bg);
+}
+
+/* ==================== 顶部操作 ==================== */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  background: var(--card);
+}
+
+.topbar__btn {
+  height: 64rpx;
+  margin-right: 16rpx;
+  padding: 0 30rpx;
+  border-radius: 999rpx;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 26rpx;
+  line-height: 64rpx;
+}
+
+.topbar__btn--off {
+  opacity: 0.4;
+}
+
+/* ==================== 模式切换 ==================== */
+
+.modes {
+  display: flex;
+  align-items: center;
+  padding: 4rpx 24rpx 16rpx;
+  background: var(--card);
+}
+
+.modes__tab {
+  margin-right: 32rpx;
+  padding-bottom: 8rpx;
+  border-bottom: 4rpx solid transparent;
+  color: var(--text-sub);
+  font-size: 28rpx;
+}
+
+.modes__tab--on {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.sizes {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.sizes__dot {
+  box-sizing: border-box;
+  margin-left: 20rpx;
+  max-width: 40rpx;
+  max-height: 40rpx;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.sizes__dot--on {
+  background: var(--primary);
+}
+
+/* ==================== 画布 ==================== */
+
+.stage {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  margin: 16rpx 24rpx;
+  border-radius: var(--radius);
+  background: #ffffff;
+  /* 透明背景的抠图结果要能看清边界 */
+  box-shadow: var(--shadow);
+}
+
+.stage__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.stage__loading {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--text-sub);
+  font-size: 26rpx;
+}
+
+/* 裁剪框：用超大 box-shadow 把框外压暗 */
+.cropbox {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2rpx solid #ffffff;
+  box-shadow: 0 0 0 3000rpx rgba(0, 0, 0, 0.45);
+}
+
+.cropbox__corner {
+  position: absolute;
+  width: 30rpx;
+  height: 30rpx;
+  border: 4rpx solid var(--primary);
+}
+
+.cropbox__corner--tl {
+  top: -2rpx;
+  left: -2rpx;
+  border-right: none;
+  border-bottom: none;
+}
+
+.cropbox__corner--tr {
+  top: -2rpx;
+  right: -2rpx;
+  border-bottom: none;
+  border-left: none;
+}
+
+.cropbox__corner--bl {
+  bottom: -2rpx;
+  left: -2rpx;
+  border-top: none;
+  border-right: none;
+}
+
+.cropbox__corner--br {
+  right: -2rpx;
+  bottom: -2rpx;
+  border-top: none;
+  border-left: none;
+}
+
+/* ==================== 提示与底部按钮 ==================== */
+
+.hint {
+  padding: 0 32rpx 16rpx;
+  color: var(--text-sub);
+  font-size: 24rpx;
+  text-align: center;
+}
+
+.bottom {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid var(--border);
+  background: var(--card);
+}
+
+.bottom__btn {
+  flex: 1;
+  height: 84rpx;
+  border-radius: 999rpx;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 30rpx;
+  text-align: center;
+  line-height: 84rpx;
+}
+
+.bottom__btn--primary {
+  margin-left: 20rpx;
+  background: var(--primary);
+  color: #ffffff;
+}
