@@ -487,8 +487,8 @@ Page({
   onLayerTouchEnd(e) {
     if (!this._gesture) return;
     const touches = (e && e.touches) || [];
-    // 还有手指留在屏幕上就先不禁用，等全部抬起再恢复拖拽
-    if (touches.length) return;
+    // 还有两根手指在屏幕上，说明捏合还没结束
+    if (touches.length >= 2) return;
 
     const id = this._gesture.id;
     this._gesture = null;

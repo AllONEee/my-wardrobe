@@ -9,9 +9,12 @@
  *    这样手势逻辑（涂抹、捏合缩放）仍然写在页面里，坐标语义和直接写 canvas 时一致
  *
  * 使用方式：
- *   <image-canvas id="editor" class="xxx" interactive bind:touchstart="onTouchStart" ... />
+ *   <image-canvas id="editor" class="xxx" interactive="{{true}}" bind:touchstart="onTouchStart" ... />
  *   const comp = this.selectComponent('#editor');
  *   comp.whenReady().then(({ canvas, ctx, dpr, width, height }) => { ... });
+ *
+ * 触摸：组件内部的 canvas 用 catch 接住原生触摸事件（不再往外冒），只把坐标整理成
+ * e.detail.touches 转发一次，页面拿到的就是干净的一份事件。
  *
  * 布局说明：画布的 CSS 尺寸由使用方决定（组件内部 100% 撑满），导出时的
  * x/y/width/height 用 CSS 像素、destWidth/destHeight 用像素，和直接调 canvasToTempFilePath 一致。

@@ -3,8 +3,8 @@
   type="2d"
   id="canvas"
   class="cv"
-  bindtouchstart="onTouchStart"
-  bindtouchmove="onTouchMove"
-  bindtouchend="onTouchEnd"
-  bindtouchcancel="onTouchEnd"
+  catchtouchstart="onTouchStart"
+  catchtouchmove="onTouchMove"
+  catchtouchend="onTouchEnd"
+  catchtouchcancel="onTouchEnd"
 ></canvas>
